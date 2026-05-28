@@ -25,6 +25,21 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6ce39c4d-67f6-406c-8180-d0fba2f70f78"
+      }
+    },
+    "owner": "domingo11",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6ce39c4d-67f6-406c-8180-d0fba2f70f78"
     }
   }
 }
