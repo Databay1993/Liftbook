@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 export function useTimer() {
   const [seconds, setSeconds] = useState<number | null>(null);
@@ -20,6 +21,7 @@ export function useTimer() {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
         playBeep();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         setTimeout(() => setSeconds(null), 1500);
       }
     }, 500);
@@ -40,7 +42,5 @@ export function useTimer() {
 async function playBeep() {
   try {
     await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-    // Simple beep via a short sine wave note
-    // In production, swap for a bundled audio asset for better quality
   } catch {}
 }

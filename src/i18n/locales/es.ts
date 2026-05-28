@@ -128,6 +128,10 @@ export default {
   errorNoExercises: 'Agrega al menos un ejercicio al plan.',
   errorSaveFailed: 'No se pudo guardar. Inténtalo de nuevo.',
 
+  // Last workout & progress
+  lastWorkout: 'Último Entrenamiento',
+  progress: 'Progreso',
+
   // Toast
   saved: 'Guardado ✓',
   imported: 'Importado ✓',

@@ -12,7 +12,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useWorkout } from '../context/WorkoutContext';
 import {
   getHistory, addCustomExercise,
-  getTemplates, deleteTemplate, getLastWorkoutDate, Template,
+  getTemplates, deleteTemplate, getLastWorkoutDate, getLastWorkout, LastWorkoutExercise, Template,
 } from '../storage/database';
 import Toast from '../components/Toast';
 import TemplateEditorScreen from './TemplateEditorScreen';
@@ -29,6 +29,7 @@ export default function HomeScreen({ navigation }: any) {
   const [toast, setToast] = useState<string | null>(null);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [lastTrainedLabel, setLastTrainedLabel] = useState<string | null>(null);
+  const [lastWorkout, setLastWorkout] = useState<{ date: string; exercises: LastWorkoutExercise[] } | null>(null);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
 
   function showToast(msg: string) {
@@ -41,14 +42,15 @@ export default function HomeScreen({ navigation }: any) {
   }, []));
 
   async function loadAll() {
-    const [history, tmpl, lastDate] = await Promise.all([
-      getHistory(), getTemplates(), getLastWorkoutDate(),
+    const [history, tmpl, lastDate, lastWo] = await Promise.all([
+      getHistory(), getTemplates(), getLastWorkoutDate(), getLastWorkout(),
     ]);
     const workoutIds = new Set(history.map(r => r.workoutId));
     const exerciseNames = new Set(history.map(r => r.exerciseName));
     setStats({ workouts: workoutIds.size, exercises: exerciseNames.size, sets: history.length });
     setTemplates(tmpl);
     setLastTrainedLabel(formatLastTrained(lastDate));
+    setLastWorkout(lastWo);
   }
 
   function formatLastTrained(date: string | null): string | null {
@@ -117,6 +119,28 @@ export default function HomeScreen({ navigation }: any) {
             </View>
           )}
         </View>
+
+        {/* Last Workout Card */}
+        {lastWorkout && (
+          <View style={styles.lastWorkoutCard}>
+            <Text style={styles.lastWorkoutTitle}>{t('lastWorkout').toUpperCase()}</Text>
+            <Text style={styles.lastWorkoutDate}>
+              {new Date(lastWorkout.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long' })}
+            </Text>
+            {lastWorkout.exercises.map(ex => (
+              <View key={ex.exerciseName} style={styles.lastWorkoutExRow}>
+                <Text style={styles.lastWorkoutExName}>{ex.exerciseName}</Text>
+                <View style={styles.lastWorkoutSets}>
+                  {ex.sets.map((s, i) => (
+                    <View key={i} style={styles.lastWorkoutChip}>
+                      <Text style={styles.lastWorkoutChipText}>{s.reps}×{s.weight}kg</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
@@ -329,5 +353,33 @@ function makeStyles(c: Colors) {
       marginTop: 4,
     },
     newTemplateBtnText: { color: c.accent, fontSize: 14 },
+    lastWorkoutCard: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 14,
+      marginBottom: 20,
+    },
+    lastWorkoutTitle: {
+      fontFamily: 'BebasNeue_400Regular',
+      fontSize: 15,
+      letterSpacing: 2,
+      color: c.accent,
+      marginBottom: 4,
+    },
+    lastWorkoutDate: { fontSize: 12, color: c.muted, marginBottom: 10 },
+    lastWorkoutExRow: { marginBottom: 8 },
+    lastWorkoutExName: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 4 },
+    lastWorkoutSets: { flexDirection: 'row', flexWrap: 'wrap', gap: 5 },
+    lastWorkoutChip: {
+      backgroundColor: c.surface2,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 20,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+    },
+    lastWorkoutChipText: { fontSize: 11, color: c.text },
   });
 }

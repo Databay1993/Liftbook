@@ -306,3 +306,65 @@ export async function getLastWorkoutDate(): Promise<string | null> {
   );
   return row?.date ?? null;
 }
+
+// ── Last workout (full) ────────────────────────────────────────
+
+export type LastWorkoutExercise = {
+  exerciseName: string;
+  sets: { reps: string; weight: string }[];
+};
+
+export async function getLastWorkout(): Promise<{ date: string; exercises: LastWorkoutExercise[] } | null> {
+  const db = await getDb();
+  const latest = await db.getFirstAsync<{ id: number; date: string }>(
+    'SELECT id, date FROM workouts ORDER BY date DESC LIMIT 1'
+  );
+  if (!latest) return null;
+
+  const rows = await db.getAllAsync<{ exercise_name: string; reps: string; weight: string }>(
+    'SELECT exercise_name, reps, weight FROM sets WHERE workout_id = ? ORDER BY exercise_name ASC, set_number ASC',
+    latest.id
+  );
+
+  const exMap: Record<string, LastWorkoutExercise> = {};
+  for (const row of rows) {
+    if (!exMap[row.exercise_name]) exMap[row.exercise_name] = { exerciseName: row.exercise_name, sets: [] };
+    exMap[row.exercise_name].sets.push({ reps: row.reps, weight: row.weight });
+  }
+
+  return { date: latest.date, exercises: Object.values(exMap) };
+}
+
+// ── Exercise progress ──────────────────────────────────────────
+
+export type ExerciseProgressPoint = {
+  date: string;
+  maxWeight: number;
+  totalVolume: number;
+};
+
+export async function getExerciseProgress(exerciseName: string): Promise<ExerciseProgressPoint[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ date: string; reps: string; weight: string }>(`
+    SELECT w.date, s.reps, s.weight
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    WHERE s.exercise_name = ?
+    ORDER BY w.date ASC
+  `, exerciseName);
+
+  const sessionMap: Record<string, { maxWeight: number; totalVolume: number }> = {};
+  for (const row of rows) {
+    const w = parseFloat(row.weight) || 0;
+    const r = parseFloat(row.reps) || 0;
+    if (!sessionMap[row.date]) sessionMap[row.date] = { maxWeight: 0, totalVolume: 0 };
+    if (w > sessionMap[row.date].maxWeight) sessionMap[row.date].maxWeight = w;
+    sessionMap[row.date].totalVolume += w * r;
+  }
+
+  return Object.entries(sessionMap).map(([date, v]) => ({
+    date,
+    maxWeight: v.maxWeight,
+    totalVolume: Math.round(v.totalVolume),
+  }));
+}

@@ -129,6 +129,10 @@ export default {
   errorNoExercises: 'Füge mindestens eine Übung zum Plan hinzu.',
   errorSaveFailed: 'Speichern fehlgeschlagen. Bitte erneut versuchen.',
 
+  // Last workout & progress
+  lastWorkout: 'Letztes Workout',
+  progress: 'Fortschritt',
+
   // Toast
   saved: 'Gespeichert ✓',
   imported: 'Importiert ✓',

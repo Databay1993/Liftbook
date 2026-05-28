@@ -129,6 +129,10 @@ export default {
   errorNoExercises: 'Add at least one exercise to the plan.',
   errorSaveFailed: 'Could not save. Please try again.',
 
+  // Last workout & progress
+  lastWorkout: 'Last Workout',
+  progress: 'Progress',
+
   // Toast
   saved: 'Saved ✓',
   imported: 'Imported ✓',

@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { getHistory, HistoryRow } from '../storage/database';
+import { getHistory, getExerciseProgress, ExerciseProgressPoint, HistoryRow } from '../storage/database';
+import ExerciseProgressChart from '../components/ExerciseProgressChart';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
@@ -16,10 +17,12 @@ export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { width } = useWindowDimensions();
 
   const [exStats, setExStats] = useState<ExStats[]>([]);
   const [totals, setTotals] = useState({ workouts: 0, sets: 0, volume: 0 });
   const [weekFreq, setWeekFreq] = useState<{ week: string; count: number }[]>([]);
+  const [progressData, setProgressData] = useState<Record<string, ExerciseProgressPoint[]>>({});
 
   useFocusEffect(useCallback(() => {
     load();
@@ -57,7 +60,14 @@ export default function StatsScreen() {
       };
     });
 
-    setExStats(stats.sort((a, b) => b.totalVol - a.totalVol));
+    const sortedStats = stats.sort((a, b) => b.totalVol - a.totalVol);
+    setExStats(sortedStats);
+
+    const topExercises = sortedStats.slice(0, 10).map(e => e.name);
+    const progressEntries = await Promise.all(
+      topExercises.map(async name => [name, await getExerciseProgress(name)] as const)
+    );
+    setProgressData(Object.fromEntries(progressEntries));
 
     const weeks: Record<string, Set<number>> = {};
     for (const row of rows) {
@@ -125,6 +135,13 @@ export default function StatsScreen() {
                   <Text style={styles.prChipLabel}>{t('bestVol')}</Text>
                 </View>
               </View>
+              {progressData[ex.name] && progressData[ex.name].length >= 2 && (
+                <ExerciseProgressChart
+                  data={progressData[ex.name]}
+                  colors={colors}
+                  width={width - 64}
+                />
+              )}
             </View>
           ))
         )}
