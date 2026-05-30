@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 
 export function useTimer() {
@@ -20,7 +19,6 @@ export function useTimer() {
       if (remaining <= 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
-        playBeep();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         setTimeout(() => setSeconds(null), 1500);
       }
@@ -37,10 +35,4 @@ export function useTimer() {
   useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
   return { seconds, maxSeconds, start, cancel };
-}
-
-async function playBeep() {
-  try {
-    await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-  } catch {}
 }
