@@ -248,26 +248,28 @@ export async function getLastWorkoutDetail(): Promise<{
 // ── Progress per exercise ──────────────────────────────────────
 
 export type ProgressPoint = {
-  date: string;       // ISO date of workout
-  maxWeight: number;  // max weight in that session (0 if bodyweight/time)
-  maxReps: number;    // max reps in that session
-  totalVolume: number; // sum of weight*reps for that session
+  date: string;
+  maxWeight: number;
+  maxReps: number;
+  totalVolume: number;
+  best1RM: number;   // best estimated 1RM = weight × (1 + reps/30)
 };
 
 export async function getExerciseProgress(exerciseName: string): Promise<ProgressPoint[]> {
   const db = await getDb();
-  // One row per workout session for this exercise
   const rows = await db.getAllAsync<{
     date: string;
     maxWeight: number;
     maxReps: number;
     totalVolume: number;
+    best1RM: number;
   }>(`
     SELECT
       w.date,
       MAX(CAST(s.weight AS REAL)) as maxWeight,
       MAX(CAST(s.reps   AS REAL)) as maxReps,
-      SUM(CAST(s.weight AS REAL) * CAST(s.reps AS REAL)) as totalVolume
+      SUM(CAST(s.weight AS REAL) * CAST(s.reps AS REAL)) as totalVolume,
+      MAX(CAST(s.weight AS REAL) * (1.0 + CAST(s.reps AS REAL) / 30.0)) as best1RM
     FROM workouts w
     JOIN sets s ON s.workout_id = w.id
     WHERE s.exercise_name = ?
@@ -280,6 +282,7 @@ export async function getExerciseProgress(exerciseName: string): Promise<Progres
     maxWeight: r.maxWeight ?? 0,
     maxReps: r.maxReps ?? 0,
     totalVolume: r.totalVolume ?? 0,
+    best1RM: r.best1RM ?? 0,
   }));
 }
 

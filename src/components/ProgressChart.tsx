@@ -7,7 +7,7 @@ import { ProgressPoint } from '../storage/database';
 
 interface Props {
   data: ProgressPoint[];
-  metric: 'maxWeight' | 'maxReps' | 'totalVolume';
+  metric: 'best1RM' | 'maxReps' | 'totalVolume';
   unit: string;
 }
 

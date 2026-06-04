@@ -174,15 +174,15 @@ export default function StatsScreen() {
 
               {ex.expanded && (
                 <View style={styles.chartWrap}>
-                  {/* Weight chart (if has weight data) */}
-                  {ex.points.some(p => p.maxWeight > 0) && (
+                  {/* 1RM chart for weight exercises */}
+                  {ex.points.some(p => p.best1RM > 0) && (
                     <View style={styles.chartSection}>
-                      <Text style={styles.chartLabel}>Max Gewicht</Text>
-                      <ProgressChart data={ex.points} metric="maxWeight" unit="kg" />
+                      <Text style={styles.chartLabel}>Geschätztes 1RM (kg) — vergleicht Gewicht + Wdh. zusammen</Text>
+                      <ProgressChart data={ex.points} metric="best1RM" unit="kg" />
                     </View>
                   )}
-                  {/* Reps chart */}
-                  {ex.points.some(p => p.maxReps > 0) && (
+                  {/* Reps-only chart for bodyweight exercises */}
+                  {ex.points.every(p => p.best1RM === 0) && ex.points.some(p => p.maxReps > 0) && (
                     <View style={styles.chartSection}>
                       <Text style={styles.chartLabel}>Max Wdh.</Text>
                       <ProgressChart data={ex.points} metric="maxReps" unit="reps" />
