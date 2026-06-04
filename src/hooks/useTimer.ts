@@ -30,9 +30,10 @@ export function useTimer() {
     // Schedule a new one — fires even when screen is locked
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: '💪 Liftbook',
-        body: 'Satzpause vorbei — nächster Satz!',
-        sound: false,   // vibration only → Spotify keeps playing
+        title: '💪 Liftbook — Pause vorbei!',
+        body: 'Nächster Satz 🔥',
+        sound: true,                          // iOS: vibration + kurzer Ton (unterbricht Spotify NICHT)
+        vibrate: [0, 200, 150, 200, 150, 200], // Android: 3× kurzes Buzz (düt düt düt)
       },
       trigger: { seconds: duration, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
     });
