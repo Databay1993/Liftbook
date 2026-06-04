@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 
@@ -32,8 +33,10 @@ export function useTimer() {
       content: {
         title: '💪 Liftbook — Pause vorbei!',
         body: 'Nächster Satz 🔥',
-        sound: true,                          // iOS: vibration + kurzer Ton (unterbricht Spotify NICHT)
-        vibrate: [0, 200, 150, 200, 150, 200], // Android: 3× kurzes Buzz (düt düt düt)
+        // iOS: custom "düt düt düt" sound (bundled in native build)
+        // Android: default sound + triple vibration
+        sound: Platform.OS === 'ios' ? 'liftbook_beep.wav' : true,
+        vibrate: [0, 200, 150, 200, 150, 200],
       },
       trigger: { seconds: duration, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
     });

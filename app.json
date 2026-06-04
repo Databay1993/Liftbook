@@ -31,7 +31,7 @@
       ["expo-notifications", {
         "icon": "./assets/icon.png",
         "color": "#3B82F6",
-        "sounds": []
+        "sounds": ["./assets/sounds/liftbook_beep.wav"]
       }]
     ],
     "extra": {
