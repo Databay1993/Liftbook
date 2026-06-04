@@ -68,6 +68,9 @@ export default {
   maxReps: 'Reps Máx.',
   bestVol: 'Mejor Vol.',
   volume: 'Volumen',
+  lastWorkout: 'Último Entrenamiento',
+  progressCharts: 'Progreso',
+  noLastWorkout: 'Sin entrenamientos aún',
 
   // Settings
   settings: 'Ajustes',

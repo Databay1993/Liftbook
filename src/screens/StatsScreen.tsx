@@ -1,15 +1,21 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { getHistory, HistoryRow } from '../storage/database';
+import {
+  getHistory, HistoryRow,
+  getLastWorkoutDetail, LastWorkoutExercise,
+  getExerciseProgress, ProgressPoint,
+} from '../storage/database';
+import ProgressChart from '../components/ProgressChart';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
+type ExProgress = { name: string; points: ProgressPoint[]; expanded: boolean };
 
 export default function StatsScreen() {
   const { t } = useTranslation();
@@ -20,19 +26,25 @@ export default function StatsScreen() {
   const [exStats, setExStats] = useState<ExStats[]>([]);
   const [totals, setTotals] = useState({ workouts: 0, sets: 0, volume: 0 });
   const [weekFreq, setWeekFreq] = useState<{ week: string; count: number }[]>([]);
+  const [lastWorkout, setLastWorkout] = useState<{ date: string; exercises: LastWorkoutExercise[] } | null>(null);
+  const [progress, setProgress] = useState<ExProgress[]>([]);
 
   useFocusEffect(useCallback(() => {
     load();
   }, []));
 
   async function load() {
-    const rows = await getHistory();
+    const [rows, last] = await Promise.all([getHistory(), getLastWorkoutDetail()]);
+    setLastWorkout(last);
+
     if (rows.length === 0) return;
 
+    // Totals
     const workoutIds = new Set(rows.map(r => r.workoutId));
-    const totalVol = rows.reduce((sum, r) => sum + parseFloat(r.reps) * parseFloat(r.weight) || 0, 0);
+    const totalVol = rows.reduce((sum, r) => sum + (parseFloat(r.reps) * parseFloat(r.weight) || 0), 0);
     setTotals({ workouts: workoutIds.size, sets: rows.length, volume: Math.round(totalVol) });
 
+    // Per-exercise stats
     const exMap: Record<string, { sessions: Set<number>; rows: HistoryRow[] }> = {};
     for (const row of rows) {
       if (!exMap[row.exerciseName]) exMap[row.exerciseName] = { sessions: new Set(), rows: [] };
@@ -56,9 +68,9 @@ export default function StatsScreen() {
         totalVol: Math.round(totalVol),
       };
     });
-
     setExStats(stats.sort((a, b) => b.totalVol - a.totalVol));
 
+    // Weekly frequency (last 8 weeks)
     const weeks: Record<string, Set<number>> = {};
     for (const row of rows) {
       const d = new Date(row.date);
@@ -73,9 +85,32 @@ export default function StatsScreen() {
       .slice(-8)
       .map(([key, ids]) => ({ week: key.split('-W')[1], count: ids.size }));
     setWeekFreq(sorted);
+
+    // Progress data for each exercise (load all, expand on tap)
+    const topExercises = stats.slice(0, 10).map(e => e.name);
+    const progressData = await Promise.all(
+      topExercises.map(async name => ({
+        name,
+        points: await getExerciseProgress(name),
+        expanded: false,
+      }))
+    );
+    setProgress(progressData);
+  }
+
+  function toggleExpand(name: string) {
+    setProgress(prev => prev.map(p =>
+      p.name === name ? { ...p, expanded: !p.expanded } : p
+    ));
   }
 
   const maxVol = Math.max(...exStats.map(e => e.totalVol), 1);
+
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'long' });
+
+  const formatShortDate = (iso: string) =>
+    new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -86,7 +121,7 @@ export default function StatsScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}>
         <Text style={styles.pageTitle}>{t('stats').toUpperCase()}</Text>
 
-        {/* Totals */}
+        {/* ── Totals ── */}
         <View style={styles.statsRow}>
           {[
             { label: t('workouts'), value: totals.workouts },
@@ -100,8 +135,67 @@ export default function StatsScreen() {
           ))}
         </View>
 
-        {/* Personal Records */}
-        <Text style={styles.sectionTitle}>{t('personalRecords').toUpperCase()}</Text>
+        {/* ── Last Workout ── */}
+        <Text style={styles.sectionTitle}>{t('lastWorkout').toUpperCase()}</Text>
+        {!lastWorkout ? (
+          <Text style={styles.empty}>{t('noLastWorkout')}</Text>
+        ) : (
+          <View style={styles.lastCard}>
+            <Text style={styles.lastDate}>{formatDate(lastWorkout.date)}</Text>
+            <View style={styles.lastExList}>
+              {lastWorkout.exercises.map(ex => {
+                const vol = ex.sets.reduce((s, set) =>
+                  s + (parseFloat(set.reps) || 0) * (parseFloat(set.weight) || 0), 0);
+                return (
+                  <View key={ex.name} style={styles.lastExRow}>
+                    <Text style={styles.lastExName}>{ex.name}</Text>
+                    <Text style={styles.lastExMeta}>
+                      {ex.sets.length} {t('sets')}
+                      {vol > 0 ? `  ·  ${Math.round(vol)} kg` : ''}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ── Progress Charts ── */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('progressCharts').toUpperCase()}</Text>
+        {progress.length === 0 ? (
+          <Text style={styles.empty}>{t('noData')}</Text>
+        ) : (
+          progress.map(ex => (
+            <View key={ex.name} style={styles.progressCard}>
+              <TouchableOpacity style={styles.progressHeader} onPress={() => toggleExpand(ex.name)}>
+                <Text style={styles.progressName}>{ex.name}</Text>
+                <Text style={styles.progressArrow}>{ex.expanded ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+
+              {ex.expanded && (
+                <View style={styles.chartWrap}>
+                  {/* Weight chart (if has weight data) */}
+                  {ex.points.some(p => p.maxWeight > 0) && (
+                    <View style={styles.chartSection}>
+                      <Text style={styles.chartLabel}>Max Gewicht</Text>
+                      <ProgressChart data={ex.points} metric="maxWeight" unit="kg" />
+                    </View>
+                  )}
+                  {/* Reps chart */}
+                  {ex.points.some(p => p.maxReps > 0) && (
+                    <View style={styles.chartSection}>
+                      <Text style={styles.chartLabel}>Max Wdh.</Text>
+                      <ProgressChart data={ex.points} metric="maxReps" unit="reps" />
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          ))
+        )}
+
+        {/* ── Personal Records ── */}
+        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('personalRecords').toUpperCase()}</Text>
         {exStats.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
         ) : (
@@ -129,7 +223,7 @@ export default function StatsScreen() {
           ))
         )}
 
-        {/* Volume bars */}
+        {/* ── Volume bars ── */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('totalVolume').toUpperCase()}</Text>
         {exStats.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
@@ -147,7 +241,7 @@ export default function StatsScreen() {
           ))
         )}
 
-        {/* Weekly frequency */}
+        {/* ── Weekly frequency ── */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('weeklyFrequency').toUpperCase()}</Text>
         <View style={styles.freqRow}>
           {weekFreq.length === 0 ? (
@@ -182,6 +276,8 @@ function makeStyles(c: Colors) {
     pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 16 },
     sectionTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 10 },
     empty: { color: c.muted, fontSize: 13, paddingVertical: 8 },
+
+    // Totals
     statsRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
     statCard: {
       flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
@@ -189,6 +285,51 @@ function makeStyles(c: Colors) {
     },
     statNum: { fontFamily: 'BebasNeue_400Regular', fontSize: 30, color: c.accent },
     statLabel: { fontSize: 10, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 },
+
+    // Last Workout
+    lastCard: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: 14,
+      marginBottom: 4,
+    },
+    lastDate: { fontFamily: 'BebasNeue_400Regular', fontSize: 16, letterSpacing: 1, color: c.accent, marginBottom: 10 },
+    lastExList: { gap: 6 },
+    lastExRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 6,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    lastExName: { fontSize: 14, color: c.text, fontWeight: '500' },
+    lastExMeta: { fontSize: 12, color: c.muted },
+
+    // Progress Charts
+    progressCard: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      marginBottom: 8,
+      overflow: 'hidden',
+    },
+    progressHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 14,
+    },
+    progressName: { fontWeight: '600', fontSize: 14, color: c.text, flex: 1 },
+    progressArrow: { color: c.muted, fontSize: 12 },
+    chartWrap: { paddingHorizontal: 8, paddingBottom: 12, borderTopWidth: 1, borderTopColor: c.border },
+    chartSection: { marginTop: 12 },
+    chartLabel: { fontSize: 11, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, paddingHorizontal: 4 },
+
+    // PRs
     prCard: {
       backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
       borderRadius: 10, padding: 14, marginBottom: 10,
@@ -202,12 +343,16 @@ function makeStyles(c: Colors) {
     },
     prChipVal: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, color: c.accent },
     prChipLabel: { color: c.muted, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1 },
+
+    // Volume bars
     volBar: { marginBottom: 14 },
     volBarLabel: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
     volBarName: { fontSize: 12, color: c.text },
     volBarVal: { fontFamily: 'BebasNeue_400Regular', fontSize: 15, color: c.accent },
     volBarBg: { backgroundColor: c.surface2, borderRadius: 4, height: 8, overflow: 'hidden' },
     volBarFill: { height: '100%', backgroundColor: c.accent, borderRadius: 4 },
+
+    // Weekly freq
     freqRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 8 },
     freqChip: {
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,

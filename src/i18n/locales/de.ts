@@ -69,6 +69,9 @@ export default {
   maxReps: 'Max Wdh.',
   bestVol: 'Best Vol.',
   volume: 'Volumen',
+  lastWorkout: 'Letztes Workout',
+  progressCharts: 'Fortschritt',
+  noLastWorkout: 'Noch kein Workout',
 
   // Settings
   settings: 'Einstellungen',

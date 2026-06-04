@@ -8,6 +8,7 @@ import { DMSans_400Regular, DMSans_600SemiBold } from '@expo-google-fonts/dm-san
 import { useTranslation } from 'react-i18next';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { initDb } from './src/storage/database';
 import { initI18n } from './src/i18n';
 import { WorkoutProvider } from './src/context/WorkoutContext';
@@ -97,6 +98,8 @@ export default function App() {
   });
 
   useEffect(() => {
+    Notifications.requestPermissionsAsync().catch(() => {});
+
     initI18n()
       .then(() => setI18nReady(true))
       .catch(e => setInitError('i18n: ' + e?.message));

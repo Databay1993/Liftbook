@@ -213,6 +213,76 @@ export async function getLastSessionForExercise(
   return { date: latest.date, sets };
 }
 
+// ── Last workout detail ────────────────────────────────────────
+
+export type LastWorkoutExercise = {
+  name: string;
+  sets: { reps: string; weight: string }[];
+};
+
+export async function getLastWorkoutDetail(): Promise<{
+  date: string;
+  exercises: LastWorkoutExercise[];
+} | null> {
+  const db = await getDb();
+  const latest = await db.getFirstAsync<{ id: number; date: string }>(
+    'SELECT id, date FROM workouts ORDER BY date DESC LIMIT 1'
+  );
+  if (!latest) return null;
+
+  const rows = await db.getAllAsync<{ exercise_name: string; reps: string; weight: string }>(
+    `SELECT exercise_name, reps, weight FROM sets
+     WHERE workout_id = ? ORDER BY exercise_name ASC, set_number ASC`,
+    latest.id
+  );
+
+  const exMap: Record<string, LastWorkoutExercise> = {};
+  for (const row of rows) {
+    if (!exMap[row.exercise_name]) exMap[row.exercise_name] = { name: row.exercise_name, sets: [] };
+    exMap[row.exercise_name].sets.push({ reps: row.reps, weight: row.weight });
+  }
+
+  return { date: latest.date, exercises: Object.values(exMap) };
+}
+
+// ── Progress per exercise ──────────────────────────────────────
+
+export type ProgressPoint = {
+  date: string;       // ISO date of workout
+  maxWeight: number;  // max weight in that session (0 if bodyweight/time)
+  maxReps: number;    // max reps in that session
+  totalVolume: number; // sum of weight*reps for that session
+};
+
+export async function getExerciseProgress(exerciseName: string): Promise<ProgressPoint[]> {
+  const db = await getDb();
+  // One row per workout session for this exercise
+  const rows = await db.getAllAsync<{
+    date: string;
+    maxWeight: number;
+    maxReps: number;
+    totalVolume: number;
+  }>(`
+    SELECT
+      w.date,
+      MAX(CAST(s.weight AS REAL)) as maxWeight,
+      MAX(CAST(s.reps   AS REAL)) as maxReps,
+      SUM(CAST(s.weight AS REAL) * CAST(s.reps AS REAL)) as totalVolume
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    WHERE s.exercise_name = ?
+    GROUP BY w.id
+    ORDER BY w.date ASC
+  `, exerciseName);
+
+  return rows.map(r => ({
+    date: r.date,
+    maxWeight: r.maxWeight ?? 0,
+    maxReps: r.maxReps ?? 0,
+    totalVolume: r.totalVolume ?? 0,
+  }));
+}
+
 // ── Import / Export ────────────────────────────────────────────
 
 export async function exportAllData(): Promise<string> {
