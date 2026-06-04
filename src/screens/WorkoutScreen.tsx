@@ -76,10 +76,11 @@ export default function WorkoutScreen({ navigation }: any) {
     setTimeout(() => setToast(null), 2400);
   }
 
+  // Reload rest duration every time screen is focused (picks up Settings changes)
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => { if (v) setRestDuration(parseInt(v)); });
     loadExercises();
-  }, []);
+  }, [activeWorkout?.workoutId]);
 
   useEffect(() => {
     if (activeWorkout) {

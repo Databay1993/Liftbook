@@ -286,6 +286,33 @@ export async function getExerciseProgress(exerciseName: string): Promise<Progres
   }));
 }
 
+// ── Progress by weight (reps per weight per session) ──────────
+
+export type ProgressByWeightRow = {
+  date: string;
+  weight: number;
+  maxReps: number;
+};
+
+export async function getExerciseProgressByWeight(
+  exerciseName: string,
+): Promise<ProgressByWeightRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<ProgressByWeightRow>(`
+    SELECT
+      w.date,
+      ROUND(CAST(s.weight AS REAL), 1) as weight,
+      MAX(CAST(s.reps AS REAL)) as maxReps
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    WHERE s.exercise_name = ?
+      AND CAST(s.weight AS REAL) > 0
+      AND CAST(s.reps   AS REAL) > 0
+    GROUP BY w.id, ROUND(CAST(s.weight AS REAL), 1)
+    ORDER BY w.date ASC, weight ASC
+  `, exerciseName);
+}
+
 // ── Import / Export ────────────────────────────────────────────
 
 export async function exportAllData(): Promise<string> {

@@ -9,13 +9,13 @@ import { useTheme } from '../context/ThemeContext';
 import {
   getHistory, HistoryRow,
   getLastWorkoutDetail, LastWorkoutExercise,
-  getExerciseProgress, ProgressPoint,
+  getExerciseProgressByWeight, ProgressByWeightRow,
 } from '../storage/database';
-import ProgressChart from '../components/ProgressChart';
+import ProgressChartByWeight from '../components/ProgressChartByWeight';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
-type ExProgress = { name: string; points: ProgressPoint[]; expanded: boolean };
+type ExProgress = { name: string; points: ProgressByWeightRow[]; expanded: boolean };
 
 export default function StatsScreen() {
   const { t } = useTranslation();
@@ -91,7 +91,7 @@ export default function StatsScreen() {
     const progressData = await Promise.all(
       topExercises.map(async name => ({
         name,
-        points: await getExerciseProgress(name),
+        points: await getExerciseProgressByWeight(name),
         expanded: false,
       }))
     );
@@ -174,20 +174,12 @@ export default function StatsScreen() {
 
               {ex.expanded && (
                 <View style={styles.chartWrap}>
-                  {/* 1RM chart for weight exercises */}
-                  {ex.points.some(p => p.best1RM > 0) && (
-                    <View style={styles.chartSection}>
-                      <Text style={styles.chartLabel}>Geschätztes 1RM (kg) — vergleicht Gewicht + Wdh. zusammen</Text>
-                      <ProgressChart data={ex.points} metric="best1RM" unit="kg" />
-                    </View>
-                  )}
-                  {/* Reps-only chart for bodyweight exercises */}
-                  {ex.points.every(p => p.best1RM === 0) && ex.points.some(p => p.maxReps > 0) && (
-                    <View style={styles.chartSection}>
-                      <Text style={styles.chartLabel}>Max Wdh.</Text>
-                      <ProgressChart data={ex.points} metric="maxReps" unit="reps" />
-                    </View>
-                  )}
+                  <View style={styles.chartSection}>
+                    <Text style={styles.chartLabel}>
+                      Wiederholungen pro Gewicht — jede Farbe = ein Gewicht
+                    </Text>
+                    <ProgressChartByWeight data={ex.points} />
+                  </View>
                 </View>
               )}
             </View>
