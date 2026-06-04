@@ -13,7 +13,8 @@ import { TrackingType } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import {
   getAllExercises, getLastSessionForExercise,
-  saveExerciseSets, addCustomExercise, updateExerciseTrackingType, getHistory,
+  saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
+  updateExerciseRestTime, getHistory,
 } from '../storage/database';
 import { useTimer } from '../hooks/useTimer';
 import TimerBubble from '../components/TimerBubble';
@@ -34,6 +35,8 @@ interface WExercise {
   trackingType: TrackingType;
   sets: WSet[];
   isCompleted: boolean;
+  restTime: number | null;   // null = use global setting
+  showRestPicker: boolean;   // inline − + picker open?
 }
 
 // ── Tracking type config ───────────────────────────────────────
@@ -64,7 +67,7 @@ export default function WorkoutScreen({ navigation }: any) {
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
   const [newExName, setNewExName] = useState('');
-  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string }[]>([]);
+  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null }[]>([]);
   const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string }[] } | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
@@ -121,7 +124,7 @@ export default function WorkoutScreen({ navigation }: any) {
     const prefilled: WSet[] = last
       ? last.sets.map(s => ({ reps: s.reps, weight: s.weight, isDone: false }))
       : [];
-    const newEx: WExercise = { name, trackingType, sets: prefilled, isCompleted: false };
+    const newEx: WExercise = { name, trackingType, sets: prefilled, isCompleted: false, restTime: info?.restTime ?? null, showRestPicker: false };
     setExercises(prev => [...prev, newEx]);
     closeSheet();
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
@@ -148,7 +151,7 @@ export default function WorkoutScreen({ navigation }: any) {
       const sets = ex.sets.map((s, i) => {
         if (i !== idx) return s;
         const nowDone = !s.isDone;
-        if (nowDone) timer.start(restDuration);
+        if (nowDone) timer.start(ex.restTime ?? restDuration);
         else timer.cancel();
         return { ...s, isDone: nowDone };
       });
@@ -184,6 +187,29 @@ export default function WorkoutScreen({ navigation }: any) {
     await saveExerciseSets(activeWorkout.workoutId, exName, validSets);
     setExercises(prev => prev.map(e => e.name === exName ? { ...e, isCompleted: true } : e));
     showToast(t('exerciseSaved'));
+  }
+
+  function toggleRestPicker(exName: string) {
+    setExercises(prev => prev.map(ex =>
+      ex.name === exName ? { ...ex, showRestPicker: !ex.showRestPicker } : { ...ex, showRestPicker: false }
+    ));
+  }
+
+  async function changeExRestTime(exName: string, delta: number) {
+    setExercises(prev => prev.map(ex => {
+      if (ex.name !== exName) return ex;
+      const current = ex.restTime ?? restDuration;
+      const next = Math.min(600, Math.max(10, current + delta));
+      updateExerciseRestTime(exName, next).catch(() => {});
+      return { ...ex, restTime: next };
+    }));
+  }
+
+  async function resetExRestTime(exName: string) {
+    await updateExerciseRestTime(exName, null);
+    setExercises(prev => prev.map(ex =>
+      ex.name === exName ? { ...ex, restTime: null, showRestPicker: false } : ex
+    ));
   }
 
   async function changeTrackingType(exName: string, type: TrackingType) {
@@ -303,6 +329,38 @@ export default function WorkoutScreen({ navigation }: any) {
               <View style={styles.exHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.exName}>{ex.name}</Text>
+                  {/* Rest time badge + inline picker */}
+                  {!disabled && (
+                    <View style={styles.restTimeRow}>
+                      <TouchableOpacity
+                        style={[styles.restTimeBadge, ex.restTime !== null && styles.restTimeBadgeCustom]}
+                        onPress={() => toggleRestPicker(ex.name)}
+                      >
+                        <Text style={styles.restTimeBadgeTxt}>
+                          ⏱ {ex.restTime ?? restDuration}s
+                          {ex.restTime === null ? ' (global)' : ''}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {ex.showRestPicker && (
+                        <View style={styles.restPickerRow}>
+                          <TouchableOpacity style={styles.restPickerBtn} onPress={() => changeExRestTime(ex.name, -15)}>
+                            <Text style={styles.restPickerBtnTxt}>−</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.restPickerVal}>{ex.restTime ?? restDuration}s</Text>
+                          <TouchableOpacity style={styles.restPickerBtn} onPress={() => changeExRestTime(ex.name, 15)}>
+                            <Text style={styles.restPickerBtnTxt}>+</Text>
+                          </TouchableOpacity>
+                          {ex.restTime !== null && (
+                            <TouchableOpacity style={styles.restPickerReset} onPress={() => resetExRestTime(ex.name)}>
+                              <Text style={styles.restPickerResetTxt}>↺ Global</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )}
+
                   {/* Tracking type pills */}
                   {!disabled && (
                     <View style={styles.trackingPills}>
@@ -634,6 +692,30 @@ function makeStyles(c: Colors) {
     exDoneBtnTxt: { color: c.muted, fontSize: 16, fontWeight: '700' },
 
     removeBtn: { color: c.muted, fontSize: 16, padding: 4 },
+
+    // Rest time per exercise
+    restTimeRow: { marginBottom: 6 },
+    restTimeBadge: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10, paddingVertical: 3,
+      borderRadius: 12, borderWidth: 1,
+      borderColor: c.border, backgroundColor: c.surface2,
+    },
+    restTimeBadgeCustom: { borderColor: c.accent, backgroundColor: c.accentBg },
+    restTimeBadgeTxt: { fontSize: 11, color: c.muted },
+    restPickerRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      marginTop: 6,
+    },
+    restPickerBtn: {
+      width: 32, height: 32, borderRadius: 16,
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    restPickerBtnTxt: { color: c.accent, fontSize: 18, fontWeight: '700' },
+    restPickerVal: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: c.text, minWidth: 44, textAlign: 'center' },
+    restPickerReset: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: c.border },
+    restPickerResetTxt: { fontSize: 11, color: c.muted },
 
     trackingPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     pill: {

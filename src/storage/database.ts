@@ -57,9 +57,14 @@ export async function initDb() {
     );
   `);
 
-  // Migration: add tracking_type column if missing (safe to call repeatedly)
+  // Migration: add tracking_type column if missing
   try {
     await db.execAsync(`ALTER TABLE exercises ADD COLUMN tracking_type TEXT DEFAULT 'weight_reps';`);
+  } catch { /* column already exists */ }
+
+  // Migration: add per-exercise rest time (nullable = use global setting)
+  try {
+    await db.execAsync(`ALTER TABLE exercises ADD COLUMN rest_time INTEGER DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
   // Migration: add workout_id tracking to workouts (already exists)
@@ -82,9 +87,9 @@ export async function initDb() {
 
 // ── Exercises ──────────────────────────────────────────────────
 
-export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string }[]> {
+export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null }[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null }>(
     'SELECT * FROM exercises ORDER BY is_custom ASC, name ASC'
   );
   return rows.map(r => ({
@@ -92,7 +97,13 @@ export async function getAllExercises(): Promise<{ id: number; name: string; isC
     name: r.name,
     isCustom: r.is_custom === 1,
     trackingType: r.tracking_type ?? 'weight_reps',
+    restTime: r.rest_time ?? null,
   }));
+}
+
+export async function updateExerciseRestTime(name: string, restTime: number | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE exercises SET rest_time = ? WHERE name = ?', restTime, name);
 }
 
 export async function updateExerciseTrackingType(name: string, trackingType: string): Promise<void> {
