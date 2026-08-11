@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 
 // Show notifications even when app is foregrounded
 Notifications.setNotificationHandler({
@@ -65,8 +66,16 @@ export function useTimer() {
       if (remaining <= 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
-        cancelWakeNotif(); // cancel since we're in foreground anyway
-        // Haptic when app is open
+        cancelWakeNotif();
+        // Play beep sound directly — works in Expo Go
+        Audio.Sound.createAsync(require('../../assets/sounds/liftbook_beep.wav'))
+          .then(({ sound }) => {
+            sound.playAsync();
+            sound.setOnPlaybackStatusUpdate(status => {
+              if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
+            });
+          })
+          .catch(() => {});
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         setTimeout(() => setSeconds(null), 1500);
       }
