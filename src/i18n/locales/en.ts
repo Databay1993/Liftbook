@@ -51,8 +51,21 @@ export default {
   trackBodyweight: 'Bodyweight',
   trackTime: 'Time',
   trackDistTime: 'Dist + Time',
+  trackPercent: 'Percent',
   durationSec: 'sec',
   distanceKm: 'km',
+  percent: '%',
+
+  // Sides (L/R)
+  sidesOff: 'L|R off',
+  sidesOn: 'L|R on',
+  leftSide: 'L',
+  rightSide: 'R',
+  addPair: '+ Pair (L+R)',
+
+  // Set timer
+  timerStart: '▶',
+  timerStop: '⏹',
 
   // History
   history: 'History',

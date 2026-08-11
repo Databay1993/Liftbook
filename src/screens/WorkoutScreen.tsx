@@ -14,7 +14,7 @@ import { useWorkout } from '../context/WorkoutContext';
 import {
   getAllExercises, getLastSessionForExercise,
   saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
-  updateExerciseRestTime, getHistory,
+  updateExerciseRestTime, updateExerciseHasSides, getHistory,
 } from '../storage/database';
 import { useTimer } from '../hooks/useTimer';
 import TimerBubble from '../components/TimerBubble';
@@ -26,17 +26,21 @@ const DEFAULT_REST = 90;
 
 // ── Types ──────────────────────────────────────────────────────
 interface WSet {
-  reps: string;    // reps or duration-sec
-  weight: string;  // kg or km
+  reps: string;            // reps or duration-sec or percent
+  weight: string;          // kg or km
   isDone: boolean;
+  side?: 'left' | 'right';
+  timerRunning?: boolean;
+  timerStartedAt?: number;
 }
 interface WExercise {
   name: string;
   trackingType: TrackingType;
   sets: WSet[];
   isCompleted: boolean;
-  restTime: number | null;   // null = use global setting
-  showRestPicker: boolean;   // inline − + picker open?
+  restTime: number | null;
+  showRestPicker: boolean;
+  hasSides: boolean;
 }
 
 // ── Tracking type config ───────────────────────────────────────
@@ -45,6 +49,7 @@ const TRACKING_TYPES: { value: TrackingType; labelKey: string }[] = [
   { value: 'bodyweight',    labelKey: 'trackBodyweight'  },
   { value: 'time',          labelKey: 'trackTime'        },
   { value: 'distance_time', labelKey: 'trackDistTime'    },
+  { value: 'percent',       labelKey: 'trackPercent'     },
 ];
 
 function formatDuration(sec: string): string {
@@ -67,19 +72,40 @@ export default function WorkoutScreen({ navigation }: any) {
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
   const [newExName, setNewExName] = useState('');
-  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null }[]>([]);
-  const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string }[] } | null>>({});
+  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean }[]>([]);
+  const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string; side?: string }[] } | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [summary, setSummary] = useState<{ totalSets: number; totalVolume: number; newPRs: string[] } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
+
+  // ── Set-level timer tick ──────────────────────────────────
+  const [, setTimerTick] = useState(0);
+  const setTimerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const anyTimerRunning = exercises.some(ex => ex.sets.some(s => s.timerRunning));
+
+  useEffect(() => {
+    if (anyTimerRunning) {
+      setTimerIntervalRef.current = setInterval(() => setTimerTick(t => t + 1), 1000);
+    } else {
+      if (setTimerIntervalRef.current) {
+        clearInterval(setTimerIntervalRef.current);
+        setTimerIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (setTimerIntervalRef.current) {
+        clearInterval(setTimerIntervalRef.current);
+        setTimerIntervalRef.current = null;
+      }
+    };
+  }, [anyTimerRunning]);
 
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 2400);
   }
 
-  // Reload rest duration every time screen is focused (picks up Settings changes)
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => { if (v) setRestDuration(parseInt(v)); });
     loadExercises();
@@ -119,12 +145,16 @@ export default function WorkoutScreen({ navigation }: any) {
     if (exercises.find(e => e.name === name)) { showToast(t('alreadyAdded')); return; }
     const info = allExercises.find(e => e.name === name);
     const trackingType = (info?.trackingType ?? 'weight_reps') as TrackingType;
+    const hasSides = info?.hasSides ?? false;
     const last = await getLastSessionForExercise(name);
     setLastSessions(prev => ({ ...prev, [name]: last }));
     const prefilled: WSet[] = last
-      ? last.sets.map(s => ({ reps: s.reps, weight: s.weight, isDone: false }))
+      ? last.sets.map(s => ({ reps: s.reps, weight: s.weight, isDone: false, side: s.side as 'left' | 'right' | undefined }))
       : [];
-    const newEx: WExercise = { name, trackingType, sets: prefilled, isCompleted: false, restTime: info?.restTime ?? null, showRestPicker: false };
+    const newEx: WExercise = {
+      name, trackingType, sets: prefilled, isCompleted: false,
+      restTime: info?.restTime ?? null, showRestPicker: false, hasSides,
+    };
     setExercises(prev => [...prev, newEx]);
     closeSheet();
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
@@ -134,6 +164,11 @@ export default function WorkoutScreen({ navigation }: any) {
     setExercises(prev => prev.map(ex => {
       if (ex.name !== exName) return ex;
       const last = ex.sets[ex.sets.length - 1];
+      if (ex.hasSides) {
+        // Add L+R pair
+        const base = { reps: last?.reps || '', weight: last?.weight || '', isDone: false };
+        return { ...ex, sets: [...ex.sets, { ...base, side: 'left' as const }, { ...base, side: 'right' as const }] };
+      }
       return { ...ex, sets: [...ex.sets, { reps: last?.reps || '', weight: last?.weight || '', isDone: false }] };
     }));
   }
@@ -153,7 +188,7 @@ export default function WorkoutScreen({ navigation }: any) {
         const nowDone = !s.isDone;
         if (nowDone) timer.start(ex.restTime ?? restDuration);
         else timer.cancel();
-        return { ...s, isDone: nowDone };
+        return { ...s, isDone: nowDone, timerRunning: false };
       });
       return { ...ex, sets };
     }));
@@ -170,11 +205,64 @@ export default function WorkoutScreen({ navigation }: any) {
     setExercises(prev => prev.filter(e => e.name !== name));
   }
 
+  // ── Side toggles ──────────────────────────────────────────
+  async function toggleHasSides(exName: string) {
+    const ex = exercises.find(e => e.name === exName);
+    if (!ex) return;
+    const next = !ex.hasSides;
+    setExercises(prev => prev.map(e => {
+      if (e.name !== exName) return e;
+      const sets = next
+        ? e.sets.map((s, i) => ({ ...s, side: (i % 2 === 0 ? 'left' : 'right') as 'left' | 'right' }))
+        : e.sets.map(s => ({ ...s, side: undefined }));
+      return { ...e, hasSides: next, sets };
+    }));
+    await updateExerciseHasSides(exName, next);
+  }
+
+  function toggleSetSide(exName: string, idx: number) {
+    setExercises(prev => prev.map(ex => {
+      if (ex.name !== exName) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, i) =>
+          i === idx ? { ...s, side: s.side === 'left' ? 'right' : 'left' } : s
+        ),
+      };
+    }));
+  }
+
+  // ── Set-level timer (for 'time' tracking) ─────────────────
+  function startSetTimer(exName: string, idx: number) {
+    setExercises(prev => prev.map(ex => {
+      if (ex.name !== exName) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, i) =>
+          i === idx ? { ...s, timerRunning: true, timerStartedAt: Date.now() } : s
+        ),
+      };
+    }));
+  }
+
+  function stopSetTimer(exName: string, idx: number) {
+    setExercises(prev => prev.map(ex => {
+      if (ex.name !== exName) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, i) => {
+          if (i !== idx) return s;
+          const elapsed = s.timerStartedAt ? Math.floor((Date.now() - s.timerStartedAt) / 1000) : 0;
+          return { ...s, reps: String(elapsed), timerRunning: false, timerStartedAt: undefined };
+        }),
+      };
+    }));
+  }
+
   async function completeExercise(exName: string) {
     const ex = exercises.find(e => e.name === exName);
     if (!ex) return;
 
-    // Toggle: if already completed → undo
     if (ex.isCompleted) {
       setExercises(prev => prev.map(e => e.name === exName ? { ...e, isCompleted: false } : e));
       return;
@@ -184,7 +272,9 @@ export default function WorkoutScreen({ navigation }: any) {
     const validSets = ex.sets.filter(s => s.reps || s.weight);
     if (validSets.length === 0) { showToast('No sets to save'); return; }
 
-    await saveExerciseSets(activeWorkout.workoutId, exName, validSets);
+    await saveExerciseSets(activeWorkout.workoutId, exName, validSets.map(s => ({
+      reps: s.reps, weight: s.weight, side: s.side,
+    })));
     setExercises(prev => prev.map(e => e.name === exName ? { ...e, isCompleted: true } : e));
     showToast(t('exerciseSaved'));
   }
@@ -236,7 +326,12 @@ export default function WorkoutScreen({ navigation }: any) {
       .filter(ex => ex.sets.length > 0);
 
     for (const ex of toSave) {
-      await saveExerciseSets(activeWorkout.workoutId, ex.name, ex.sets);
+      const exFull = exercises.find(e => e.name === ex.name);
+      await saveExerciseSets(activeWorkout.workoutId, ex.name, ex.sets.map(s => ({
+        reps: (s as WSet).reps,
+        weight: (s as WSet).weight,
+        side: (s as WSet).side,
+      })));
     }
 
     const allSaved = [
@@ -249,8 +344,8 @@ export default function WorkoutScreen({ navigation }: any) {
     const totalSets = allSaved.reduce((s, ex) => s + ex.sets.length, 0);
     const totalVolume = Math.round(
       allSaved.reduce((s, ex) => s + ex.sets.reduce((ss, set) => {
-        const r = parseFloat(set.reps) || 0;
-        const w = parseFloat(set.weight) || 0;
+        const r = parseFloat((set as WSet).reps) || 0;
+        const w = parseFloat((set as WSet).weight) || 0;
         return ss + r * w;
       }, 0), 0)
     );
@@ -258,7 +353,7 @@ export default function WorkoutScreen({ navigation }: any) {
     const history = await getHistory();
     const newPRs: string[] = [];
     for (const ex of allSaved) {
-      const maxNew = Math.max(...ex.sets.map(s => parseFloat(s.weight) || 0));
+      const maxNew = Math.max(...ex.sets.map(s => parseFloat((s as WSet).weight) || 0));
       const prevMax = Math.max(0, ...history.filter(r => r.exerciseName === ex.name).map(r => parseFloat(r.weight) || 0));
       if (maxNew > prevMax && prevMax > 0) newPRs.push(ex.name);
     }
@@ -276,7 +371,7 @@ export default function WorkoutScreen({ navigation }: any) {
 
   const filtered = allExercises.filter(e => e.name.toLowerCase().includes(exSearch.toLowerCase()));
 
-  // ── No active workout ────────────────────────────────────────
+  // ── No active workout ────────────────────────────────────
   if (!activeWorkout) {
     return (
       <View style={[styles.container, { paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}>
@@ -290,7 +385,7 @@ export default function WorkoutScreen({ navigation }: any) {
     );
   }
 
-  // ── Active workout ───────────────────────────────────────────
+  // ── Active workout ───────────────────────────────────────
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -329,6 +424,7 @@ export default function WorkoutScreen({ navigation }: any) {
               <View style={styles.exHeader}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.exName}>{ex.name}</Text>
+
                   {/* Rest time badge + inline picker */}
                   {!disabled && (
                     <View style={styles.restTimeRow}>
@@ -361,25 +457,33 @@ export default function WorkoutScreen({ navigation }: any) {
                     </View>
                   )}
 
-                  {/* Tracking type pills */}
+                  {/* Tracking type pills + L/R toggle */}
                   {!disabled && (
-                    <View style={styles.trackingPills}>
-                      {TRACKING_TYPES.map(tt => (
-                        <TouchableOpacity
-                          key={tt.value}
-                          style={[styles.pill, ex.trackingType === tt.value && styles.pillActive]}
-                          onPress={() => changeTrackingType(ex.name, tt.value)}
-                        >
-                          <Text style={[styles.pillTxt, ex.trackingType === tt.value && styles.pillTxtActive]}>
-                            {t(tt.labelKey as any)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                    <View style={styles.trackingRow}>
+                      <View style={styles.trackingPills}>
+                        {TRACKING_TYPES.map(tt => (
+                          <TouchableOpacity
+                            key={tt.value}
+                            style={[styles.pill, ex.trackingType === tt.value && styles.pillActive]}
+                            onPress={() => changeTrackingType(ex.name, tt.value)}
+                          >
+                            <Text style={[styles.pillTxt, ex.trackingType === tt.value && styles.pillTxtActive]}>
+                              {t(tt.labelKey as any)}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      {/* L/R toggle */}
+                      <TouchableOpacity
+                        style={[styles.sideToggleBtn, ex.hasSides && styles.sideToggleBtnActive]}
+                        onPress={() => toggleHasSides(ex.name)}
+                      >
+                        <Text style={[styles.sideToggleTxt, ex.hasSides && styles.sideToggleTxtActive]}>L|R</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
                 <View style={styles.exHeaderRight}>
-                  {/* Exercise-level done button */}
                   <TouchableOpacity
                     style={[styles.exDoneBtn, disabled && styles.exDoneBtnActive]}
                     onPress={() => completeExercise(ex.name)}
@@ -403,19 +507,23 @@ export default function WorkoutScreen({ navigation }: any) {
                     {t('lastSession')} · {new Date(last.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
                   </Text>
                   <View style={styles.lastChips}>
-                    {last.sets.map((s, i) => (
-                      <View key={i} style={styles.lastChip}>
-                        <Text style={styles.lastChipText}>
-                          {ex.trackingType === 'time'
-                            ? `S${i + 1}: ${formatDuration(s.reps)}`
-                            : ex.trackingType === 'bodyweight'
-                            ? `S${i + 1}: ${s.reps} reps`
-                            : ex.trackingType === 'distance_time'
-                            ? `S${i + 1}: ${s.weight}km · ${formatDuration(s.reps)}`
-                            : `S${i + 1}: ${s.reps}×${s.weight}kg`}
-                        </Text>
-                      </View>
-                    ))}
+                    {last.sets.map((s, i) => {
+                      const sidePrefix = s.side === 'left' ? 'L · ' : s.side === 'right' ? 'R · ' : '';
+                      const label = ex.trackingType === 'time'
+                        ? `${sidePrefix}S${i + 1}: ${formatDuration(s.reps)}`
+                        : ex.trackingType === 'bodyweight'
+                        ? `${sidePrefix}S${i + 1}: ${s.reps} reps`
+                        : ex.trackingType === 'distance_time'
+                        ? `${sidePrefix}S${i + 1}: ${s.weight}km · ${formatDuration(s.reps)}`
+                        : ex.trackingType === 'percent'
+                        ? `${sidePrefix}S${i + 1}: ${s.reps}%`
+                        : `${sidePrefix}S${i + 1}: ${s.reps}×${s.weight}kg`;
+                      return (
+                        <View key={i} style={styles.lastChip}>
+                          <Text style={styles.lastChipText}>{label}</Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               ) : (
@@ -429,10 +537,27 @@ export default function WorkoutScreen({ navigation }: any) {
                     const hint = ex.trackingType === 'weight_reps' && last?.sets[idx]
                       ? calcRepsHint(last.sets[idx].reps, last.sets[idx].weight, s.weight)
                       : null;
+                    const elapsed = s.timerRunning && s.timerStartedAt
+                      ? Math.floor((Date.now() - s.timerStartedAt) / 1000)
+                      : null;
+
                     return (
                       <View key={idx} style={styles.setRow}>
                         <Text style={styles.setNum}>{idx + 1}</Text>
 
+                        {/* L/R side badge */}
+                        {ex.hasSides && (
+                          <TouchableOpacity
+                            style={[styles.sideBadge, s.side === 'left' ? styles.sideBadgeLeft : styles.sideBadgeRight]}
+                            onPress={() => toggleSetSide(ex.name, idx)}
+                          >
+                            <Text style={styles.sideBadgeTxt}>
+                              {s.side === 'left' ? t('leftSide' as any) : t('rightSide' as any)}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+
+                        {/* Inputs per tracking type */}
                         {ex.trackingType === 'weight_reps' && (
                           <>
                             <TextInput
@@ -472,17 +597,37 @@ export default function WorkoutScreen({ navigation }: any) {
                         )}
 
                         {ex.trackingType === 'time' && (
-                          <View>
-                            <TextInput
-                              style={[styles.setInput, styles.setInputWide, s.isDone && styles.setInputDone]}
-                              keyboardType="numeric"
-                              placeholder={t('durationSec')}
-                              placeholderTextColor={colors.muted}
-                              value={s.reps}
-                              onChangeText={v => updateSet(ex.name, idx, 'reps', v)}
-                              editable={!s.isDone}
-                            />
-                            {s.reps ? <Text style={styles.repsHint}>{formatDuration(s.reps)}</Text> : null}
+                          <View style={styles.timeInputWrap}>
+                            {s.timerRunning ? (
+                              <>
+                                <View style={styles.timerLiveDisplay}>
+                                  <Text style={styles.timerLiveText}>{formatDuration(String(elapsed ?? 0))}</Text>
+                                </View>
+                                <TouchableOpacity style={styles.timerStopBtn} onPress={() => stopSetTimer(ex.name, idx)}>
+                                  <Text style={styles.timerBtnTxt}>{t('timerStop' as any)}</Text>
+                                </TouchableOpacity>
+                              </>
+                            ) : (
+                              <>
+                                <View>
+                                  <TextInput
+                                    style={[styles.setInput, styles.setInputWide, s.isDone && styles.setInputDone]}
+                                    keyboardType="numeric"
+                                    placeholder={t('durationSec')}
+                                    placeholderTextColor={colors.muted}
+                                    value={s.reps}
+                                    onChangeText={v => updateSet(ex.name, idx, 'reps', v)}
+                                    editable={!s.isDone}
+                                  />
+                                  {s.reps ? <Text style={styles.repsHint}>{formatDuration(s.reps)}</Text> : null}
+                                </View>
+                                {!s.isDone && (
+                                  <TouchableOpacity style={styles.timerStartBtn} onPress={() => startSetTimer(ex.name, idx)}>
+                                    <Text style={styles.timerBtnTxt}>{t('timerStart' as any)}</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </>
+                            )}
                           </View>
                         )}
 
@@ -509,6 +654,22 @@ export default function WorkoutScreen({ navigation }: any) {
                           </>
                         )}
 
+                        {ex.trackingType === 'percent' && (
+                          <View style={styles.percentRow}>
+                            <TextInput
+                              style={[styles.setInput, styles.setInputWide, s.isDone && styles.setInputDone]}
+                              keyboardType="numeric"
+                              placeholder="0"
+                              placeholderTextColor={colors.muted}
+                              value={s.reps}
+                              onChangeText={v => updateSet(ex.name, idx, 'reps', v.replace(/[^0-9]/g, '').slice(0, 3))}
+                              editable={!s.isDone}
+                              maxLength={3}
+                            />
+                            <Text style={[styles.percentSymbol, s.isDone && { color: colors.accent }]}>%</Text>
+                          </View>
+                        )}
+
                         {/* Set done toggle */}
                         <TouchableOpacity
                           style={[styles.checkBtn, s.isDone && styles.checkBtnDone]}
@@ -526,7 +687,9 @@ export default function WorkoutScreen({ navigation }: any) {
                     );
                   })}
                   <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(ex.name)}>
-                    <Text style={styles.addSetText}>{t('addSet')}</Text>
+                    <Text style={styles.addSetText}>
+                      {ex.hasSides ? t('addPair' as any) : t('addSet')}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -585,7 +748,7 @@ export default function WorkoutScreen({ navigation }: any) {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
               contentContainerStyle={{ paddingHorizontal: 16 }}
-              renderItem={({ item }) => {
+              renderItem={({ item }: { item: typeof allExercises[0] }) => {
                 const added = exercises.find(e => e.name === item.name);
                 return (
                   <TouchableOpacity style={styles.exListItem} onPress={() => handleAddExercise(item.name)}>
@@ -717,7 +880,8 @@ function makeStyles(c: Colors) {
     restPickerReset: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: c.border },
     restPickerResetTxt: { fontSize: 11, color: c.muted },
 
-    trackingPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
+    trackingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    trackingPills: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
     pill: {
       paddingHorizontal: 8,
       paddingVertical: 3,
@@ -729,6 +893,27 @@ function makeStyles(c: Colors) {
     pillActive: { borderColor: c.accent, backgroundColor: c.accentBg },
     pillTxt: { fontSize: 10, color: c.muted },
     pillTxtActive: { color: c.accent, fontWeight: '600' },
+
+    // L|R toggle button
+    sideToggleBtn: {
+      paddingHorizontal: 8, paddingVertical: 3,
+      borderRadius: 12, borderWidth: 1,
+      borderColor: c.border, backgroundColor: c.surface2,
+      alignSelf: 'flex-start',
+    },
+    sideToggleBtnActive: { borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.15)' },
+    sideToggleTxt: { fontSize: 10, color: c.muted, fontWeight: '700' },
+    sideToggleTxtActive: { color: '#3b82f6' },
+
+    // Side badge on set rows
+    sideBadge: {
+      width: 28, height: 38,
+      borderRadius: 6, borderWidth: 1,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    sideBadgeLeft: { backgroundColor: 'rgba(59,130,246,0.15)', borderColor: '#3b82f6' },
+    sideBadgeRight: { backgroundColor: 'rgba(239,68,68,0.15)', borderColor: '#ef4444' },
+    sideBadgeTxt: { fontSize: 13, fontWeight: '800', color: c.text },
 
     lastSession: { padding: 10, paddingHorizontal: 16, backgroundColor: 'rgba(232,255,74,0.05)', borderTopWidth: 1, borderTopColor: 'rgba(232,255,74,0.12)' },
     lastLabel: { fontSize: 10, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 },
@@ -772,6 +957,33 @@ function makeStyles(c: Colors) {
     delBtn: { color: c.muted, fontSize: 22, width: 34, height: 38, textAlign: 'center', lineHeight: 38 },
     addSetBtn: { borderWidth: 1, borderColor: c.border, borderStyle: 'dashed', borderRadius: 6, padding: 10, alignItems: 'center', marginTop: 4 },
     addSetText: { color: c.muted, fontSize: 13 },
+
+    // Time tracking: set-level timer
+    timeInputWrap: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+    timerLiveDisplay: {
+      width: 110, height: 38,
+      backgroundColor: 'rgba(59,130,246,0.12)',
+      borderWidth: 1, borderColor: '#3b82f6',
+      borderRadius: 6, alignItems: 'center', justifyContent: 'center',
+    },
+    timerLiveText: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, color: '#3b82f6', letterSpacing: 1 },
+    timerStartBtn: {
+      width: 38, height: 38,
+      backgroundColor: 'rgba(59,130,246,0.12)',
+      borderWidth: 1, borderColor: '#3b82f6',
+      borderRadius: 6, alignItems: 'center', justifyContent: 'center',
+    },
+    timerStopBtn: {
+      width: 38, height: 38,
+      backgroundColor: 'rgba(239,68,68,0.12)',
+      borderWidth: 1, borderColor: '#ef4444',
+      borderRadius: 6, alignItems: 'center', justifyContent: 'center',
+    },
+    timerBtnTxt: { fontSize: 16 },
+
+    // Percent tracking
+    percentRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    percentSymbol: { fontSize: 20, fontWeight: '700', color: c.muted },
 
     completedBanner: { padding: 10, alignItems: 'center', backgroundColor: c.accentBg, borderTopWidth: 1, borderTopColor: c.accentBorder },
     completedBannerTxt: { color: c.accent, fontSize: 13, fontWeight: '600' },

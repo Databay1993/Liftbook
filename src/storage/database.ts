@@ -67,6 +67,16 @@ export async function initDb() {
     await db.execAsync(`ALTER TABLE exercises ADD COLUMN rest_time INTEGER DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
+  // Migration: add left/right side tracking flag to exercises
+  try {
+    await db.execAsync(`ALTER TABLE exercises ADD COLUMN has_sides INTEGER DEFAULT 0;`);
+  } catch { /* column already exists */ }
+
+  // Migration: add side column to sets for L/R tracking
+  try {
+    await db.execAsync(`ALTER TABLE sets ADD COLUMN side TEXT DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
   // Migration: add workout_id tracking to workouts (already exists)
   // Seed default exercises if empty
   const count = await db.getFirstAsync<{ c: number }>(
@@ -87,9 +97,9 @@ export async function initDb() {
 
 // ── Exercises ──────────────────────────────────────────────────
 
-export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null }[]> {
+export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean }[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number }>(
     'SELECT * FROM exercises ORDER BY is_custom ASC, name ASC'
   );
   return rows.map(r => ({
@@ -98,7 +108,13 @@ export async function getAllExercises(): Promise<{ id: number; name: string; isC
     isCustom: r.is_custom === 1,
     trackingType: r.tracking_type ?? 'weight_reps',
     restTime: r.rest_time ?? null,
+    hasSides: r.has_sides === 1,
   }));
+}
+
+export async function updateExerciseHasSides(name: string, hasSides: boolean): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE exercises SET has_sides = ? WHERE name = ?', hasSides ? 1 : 0, name);
 }
 
 export async function updateExerciseRestTime(name: string, restTime: number | null): Promise<void> {
@@ -134,7 +150,7 @@ export async function createWorkoutRecord(date: string): Promise<number> {
 export async function saveExerciseSets(
   workoutId: number,
   exerciseName: string,
-  sets: { reps: string; weight: string }[],
+  sets: { reps: string; weight: string; side?: string }[],
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(
@@ -144,8 +160,8 @@ export async function saveExerciseSets(
   for (let i = 0; i < sets.length; i++) {
     const s = sets[i];
     await db.runAsync(
-      'INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight) VALUES (?, ?, ?, ?, ?)',
-      workoutId, exerciseName, i + 1, s.reps, s.weight,
+      'INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight, side) VALUES (?, ?, ?, ?, ?, ?)',
+      workoutId, exerciseName, i + 1, s.reps, s.weight, s.side ?? null,
     );
   }
 }
@@ -203,7 +219,7 @@ export async function getHistory(): Promise<HistoryRow[]> {
 
 export async function getLastSessionForExercise(
   name: string
-): Promise<{ date: string; sets: { reps: string; weight: string }[] } | null> {
+): Promise<{ date: string; sets: { reps: string; weight: string; side?: string }[] } | null> {
   const db = await getDb();
   const latest = await db.getFirstAsync<{ workoutId: number; date: string }>(`
     SELECT w.id as workoutId, w.date
@@ -216,12 +232,15 @@ export async function getLastSessionForExercise(
 
   if (!latest) return null;
 
-  const sets = await db.getAllAsync<{ reps: string; weight: string }>(
-    'SELECT reps, weight FROM sets WHERE workout_id = ? AND exercise_name = ? ORDER BY set_number ASC',
+  const rawSets = await db.getAllAsync<{ reps: string; weight: string; side: string | null }>(
+    'SELECT reps, weight, side FROM sets WHERE workout_id = ? AND exercise_name = ? ORDER BY set_number ASC',
     latest.workoutId, name
   );
 
-  return { date: latest.date, sets };
+  return {
+    date: latest.date,
+    sets: rawSets.map(s => ({ reps: s.reps, weight: s.weight, ...(s.side ? { side: s.side } : {}) })),
+  };
 }
 
 // ── Last workout detail ────────────────────────────────────────

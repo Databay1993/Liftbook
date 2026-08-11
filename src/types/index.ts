@@ -1,9 +1,10 @@
-export type TrackingType = 'weight_reps' | 'bodyweight' | 'time' | 'distance_time';
+export type TrackingType = 'weight_reps' | 'bodyweight' | 'time' | 'distance_time' | 'percent';
 
 export interface Set {
-  reps: string;      // reps (weight_reps/bodyweight) or duration in sec (time/distance_time)
+  reps: string;      // reps (weight_reps/bodyweight) or duration in sec (time/distance_time) or percent value
   weight: string;    // kg (weight_reps) or km (distance_time) – empty for others
   isDone: boolean;
+  side?: 'left' | 'right';
 }
 
 export interface ExerciseEntry {
@@ -11,6 +12,7 @@ export interface ExerciseEntry {
   trackingType: TrackingType;
   sets: Set[];
   isCompleted: boolean;
+  hasSides?: boolean;
 }
 
 export interface Workout {
@@ -22,7 +24,7 @@ export interface Workout {
 export interface HistorySession {
   id: number;
   date: string;
-  sets: { reps: string; weight: string }[];
+  sets: { reps: string; weight: string; side?: string }[];
 }
 
 export interface ExerciseHistory {

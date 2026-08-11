@@ -34,8 +34,21 @@ export default {
   trackBodyweight: 'Peso corporal',
   trackTime: 'Tiempo',
   trackDistTime: 'Dist + Tiempo',
+  trackPercent: 'Porcentaje',
   durationSec: 'seg',
   distanceKm: 'km',
+  percent: '%',
+
+  // Sides (L/R)
+  sidesOff: 'L|R apagado',
+  sidesOn: 'L|R activo',
+  leftSide: 'L',
+  rightSide: 'R',
+  addPair: '+ Par (L+D)',
+
+  // Set timer
+  timerStart: '▶',
+  timerStop: '⏹',
   workout: 'Entrenamiento',
   addExercise: '+ Agregar ejercicio',
   saveWorkout: 'GUARDAR ENTRENAMIENTO 💪',
