@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -11,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { themes, ThemeId, Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { LANGUAGES, changeLanguage } from '../i18n';
-import { exportAllData } from '../storage/database';
+import { exportAllData, getAllExercises, renameExercise } from '../storage/database';
 import Toast from '../components/Toast';
 
 const REST_KEY = '@liftbook_rest';
@@ -33,12 +34,40 @@ export default function SettingsScreen() {
 
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(90);
+  const [exercises, setExercises] = useState<{ name: string; isCustom: boolean }[]>([]);
+  const [renameTarget, setRenameTarget] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState('');
 
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => {
       if (v) setRestDuration(Number(v));
     });
+    loadExercises();
   }, []);
+
+  async function loadExercises() {
+    const all = await getAllExercises();
+    setExercises(all.map(e => ({ name: e.name, isCustom: e.isCustom })));
+  }
+
+  function openRename(name: string) {
+    setRenameTarget(name);
+    setRenameInput(name);
+  }
+
+  async function handleRename() {
+    const newName = renameInput.trim();
+    if (!newName || !renameTarget) return;
+    if (newName === renameTarget) { setRenameTarget(null); return; }
+    try {
+      await renameExercise(renameTarget, newName);
+      await loadExercises();
+      setRenameTarget(null);
+      showToast(t('renameSuccess' as any));
+    } catch {
+      showToast(t('renameError' as any));
+    }
+  }
 
   function showToast(msg: string) {
     setToast(msg);
@@ -177,6 +206,19 @@ export default function SettingsScreen() {
         </View>
         <Text style={styles.backupHint}>{t('backupHint')}</Text>
 
+        {/* ── Exercises ── */}
+        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('exercisesSection' as any).toUpperCase()}</Text>
+        <View style={styles.exerciseList}>
+          {exercises.map(ex => (
+            <View key={ex.name} style={styles.exerciseRow}>
+              <Text style={styles.exerciseName} numberOfLines={1}>{ex.name}</Text>
+              <TouchableOpacity style={styles.renameBtn} onPress={() => openRename(ex.name)}>
+                <Text style={styles.renameBtnTxt}>✏️</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+
         {/* ── About ── */}
         <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('about').toUpperCase()}</Text>
         <View style={styles.aboutCard}>
@@ -189,6 +231,34 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {toast && <Toast message={toast} />}
+
+      {/* Rename modal */}
+      <Modal visible={!!renameTarget} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('renameExercise' as any)}</Text>
+            <Text style={styles.modalOldName}>{renameTarget}</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={renameInput}
+              onChangeText={setRenameInput}
+              placeholder={t('newExerciseNamePlaceholder' as any)}
+              placeholderTextColor={colors.muted}
+              autoFocus
+              onSubmitEditing={handleRename}
+              returnKeyType="done"
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setRenameTarget(null)}>
+                <Text style={styles.modalCancelTxt}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={handleRename}>
+                <Text style={styles.modalSaveTxt}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -320,6 +390,75 @@ function makeStyles(c: Colors) {
     backupIcon: { fontSize: 22 },
     backupBtnText: { color: c.text, fontSize: 14 },
     backupHint: { fontSize: 11, color: c.muted, textAlign: 'center', marginTop: 10 },
+
+    // Exercise list
+    exerciseList: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      overflow: 'hidden',
+    },
+    exerciseRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 13,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    exerciseName: { flex: 1, fontSize: 15, color: c.text },
+    renameBtn: { padding: 4 },
+    renameBtnTxt: { fontSize: 16 },
+
+    // Rename modal
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: 20,
+      gap: 12,
+    },
+    modalTitle: {
+      fontFamily: 'BebasNeue_400Regular',
+      fontSize: 20,
+      letterSpacing: 2,
+      color: c.text,
+    },
+    modalOldName: { fontSize: 13, color: c.muted },
+    modalInput: {
+      backgroundColor: c.surface2,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      fontSize: 16,
+      color: c.text,
+    },
+    modalBtns: { flexDirection: 'row', gap: 10, marginTop: 4 },
+    modalCancelBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+    },
+    modalCancelTxt: { color: c.muted, fontSize: 15 },
+    modalSaveBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      backgroundColor: c.accent,
+      alignItems: 'center',
+    },
+    modalSaveTxt: { color: '#000', fontSize: 15, fontWeight: '700' },
 
     // About
     aboutCard: {

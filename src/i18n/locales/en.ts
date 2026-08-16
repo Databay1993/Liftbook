@@ -140,6 +140,13 @@ export default {
   onboardingStep3: 'Create workout plans for your training days',
   onboardingStart: "LET'S GO",
 
+  // Exercise management
+  exercisesSection: 'Manage Exercises',
+  renameExercise: 'Rename',
+  newExerciseNamePlaceholder: 'New name...',
+  renameSuccess: 'Renamed ✓',
+  renameError: 'Name already taken',
+
   // Validation
   errorNoName: 'Please enter a plan name first.',
   errorNoExercises: 'Add at least one exercise to the plan.',

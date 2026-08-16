@@ -137,6 +137,14 @@ export async function deleteCustomExercise(name: string): Promise<void> {
   await db.runAsync('DELETE FROM exercises WHERE name = ? AND is_custom = 1', name);
 }
 
+export async function renameExercise(oldName: string, newName: string): Promise<void> {
+  const db = await getDb();
+  const trimmed = newName.trim();
+  await db.runAsync('UPDATE exercises SET name = ? WHERE name = ?', trimmed, oldName);
+  await db.runAsync('UPDATE sets SET exercise_name = ? WHERE exercise_name = ?', trimmed, oldName);
+  await db.runAsync('UPDATE template_exercises SET exercise_name = ? WHERE exercise_name = ?', trimmed, oldName);
+}
+
 // ── Workouts / Sets ────────────────────────────────────────────
 
 // Create workout record immediately on start → enables auto-save per exercise

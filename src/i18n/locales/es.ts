@@ -139,6 +139,13 @@ export default {
   onboardingStep3: 'Crea planes para cada día de entrenamiento',
   onboardingStart: 'VAMOS',
 
+  // Exercise management
+  exercisesSection: 'Gestionar ejercicios',
+  renameExercise: 'Renombrar',
+  newExerciseNamePlaceholder: 'Nuevo nombre...',
+  renameSuccess: 'Renombrado ✓',
+  renameError: 'Nombre ya existe',
+
   // Validation
   errorNoName: 'Por favor, ingresa un nombre para el plan.',
   errorNoExercises: 'Agrega al menos un ejercicio al plan.',

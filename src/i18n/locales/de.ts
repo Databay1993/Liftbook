@@ -140,6 +140,13 @@ export default {
   onboardingStep3: 'Trainingspläne für deine Trainingstage erstellen',
   onboardingStart: 'LOS GEHT\'S',
 
+  // Exercise management
+  exercisesSection: 'Übungen verwalten',
+  renameExercise: 'Umbenennen',
+  newExerciseNamePlaceholder: 'Neuer Name...',
+  renameSuccess: 'Umbenannt ✓',
+  renameError: 'Name bereits vergeben',
+
   // Validation
   errorNoName: 'Bitte zuerst einen Plannamen eingeben.',
   errorNoExercises: 'Füge mindestens eine Übung zum Plan hinzu.',
