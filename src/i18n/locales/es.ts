@@ -99,6 +99,15 @@ export default {
   e1rmWeakPoint: 'punto hueco = estimación alta',
   e1rmOverestimated: 'Más de {{limit}} reps — la estimación sale alta',
 
+  // Trend metrics (tap to switch)
+  trendPerMonthUnit: 'kg/mes',
+  trendLabelSlope: 'tendencia robusta',
+  trendLabelBlocks: 'Ø3 vs Ø3',
+  trendLabelSmoothed: 'suavizado',
+  trendLabelNone: 'tendencia',
+  trendTooFew: 'pocos datos',
+  trendRampNote: 'reinicio excluido',
+
   // Settings
   settings: 'Ajustes',
   language: 'Idioma',

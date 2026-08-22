@@ -100,6 +100,15 @@ export default {
   e1rmWeakPoint: 'hollow point = estimate runs high',
   e1rmOverestimated: 'Over {{limit}} reps — estimate runs high',
 
+  // Trend metrics (tap to switch)
+  trendPerMonthUnit: 'kg/mo',
+  trendLabelSlope: 'robust trend',
+  trendLabelBlocks: 'avg3 vs avg3',
+  trendLabelSmoothed: 'smoothed',
+  trendLabelNone: 'trend',
+  trendTooFew: 'too few',
+  trendRampNote: 'ramp-up excluded',
+
   // Settings
   settings: 'Settings',
   language: 'Language',

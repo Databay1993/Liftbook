@@ -100,6 +100,15 @@ export default {
   e1rmWeakPoint: 'offener Punkt = geschätzt zu hoch',
   e1rmOverestimated: 'Über {{limit}} Wdh. — Schätzung fällt zu hoch aus',
 
+  // Trend metrics (tap to switch)
+  trendPerMonthUnit: 'kg/Mon',
+  trendLabelSlope: 'Trend robust',
+  trendLabelBlocks: 'Ø3 vs Ø3',
+  trendLabelSmoothed: 'geglättet',
+  trendLabelNone: 'Trend',
+  trendTooFew: 'zu wenig',
+  trendRampNote: 'Wiedereinstieg ausgeklammert',
+
   // Settings
   settings: 'Einstellungen',
   language: 'Sprache',

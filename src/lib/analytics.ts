@@ -78,6 +78,159 @@ export function e1rmTrend(points: E1RMPoint[]): number | null {
   return points[points.length - 1].e1rm - points[0].e1rm;
 }
 
+// ── Trend analysis ─────────────────────────────────────────────
+
+const DAY_MS = 86400000;
+
+/** A pause this long ends a training block and starts a new one. */
+export const BLOCK_GAP_DAYS = 21;
+
+/**
+ * Coming back after a break means deliberately starting light, which reads as
+ * a steep improvement without any strength being gained. The opening sessions
+ * of a block are therefore shown but kept out of every trend calculation.
+ */
+export const RAMP_SESSIONS = 2;
+
+/** Fewer usable sessions than this and no trend is claimed at all. */
+export const MIN_TREND_POINTS = 3;
+
+/**
+ * Two sessions a day apart produce wild slopes (a 2kg step over one day reads
+ * as +60kg/month), so close pairs are left out of the slope estimate.
+ */
+export const MIN_PAIR_DAYS = 7;
+
+/** Half-life-ish constant of the smoothed curve, in days. */
+export const EWMA_TAU_DAYS = 21;
+
+export function daysBetween(fromIso: string, toIso: string): number {
+  return Math.round((new Date(toIso).getTime() - new Date(fromIso).getTime()) / DAY_MS);
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/** Splits a series wherever training paused for longer than BLOCK_GAP_DAYS. */
+export function splitBlocks(points: E1RMPoint[]): E1RMPoint[][] {
+  if (points.length === 0) return [];
+  const blocks: E1RMPoint[][] = [[points[0]]];
+  for (let i = 1; i < points.length; i++) {
+    const gap = daysBetween(points[i - 1].date, points[i].date);
+    if (gap > BLOCK_GAP_DAYS) blocks.push([points[i]]);
+    else blocks[blocks.length - 1].push(points[i]);
+  }
+  return blocks;
+}
+
+/**
+ * Theil–Sen slope: the median of all pairwise slopes, scaled to kg per 30 days.
+ * Taking the median instead of a least-squares fit means one terrible day
+ * cannot drag the result — it shifts many pairs, but the middle one barely.
+ */
+export function theilSenPerMonth(points: E1RMPoint[]): number | null {
+  if (points.length < 2) return null;
+
+  const slopes: number[] = [];
+  const fallback: number[] = [];
+  for (let i = 0; i < points.length; i++) {
+    for (let j = i + 1; j < points.length; j++) {
+      const days = daysBetween(points[i].date, points[j].date);
+      if (days <= 0) continue;
+      const slope = (points[j].e1rm - points[i].e1rm) / days;
+      fallback.push(slope);
+      if (days >= MIN_PAIR_DAYS) slopes.push(slope);
+    }
+  }
+
+  const usable = slopes.length > 0 ? slopes : fallback;
+  if (usable.length === 0) return null;
+  return median(usable) * 30;
+}
+
+/** Average of the last `size` sessions minus the average of the `size` before. */
+export function blockCompare(points: E1RMPoint[], size = 3): number | null {
+  if (points.length < size * 2) return null;
+  const avg = (arr: E1RMPoint[]) => arr.reduce((s, p) => s + p.e1rm, 0) / arr.length;
+  const recent = points.slice(-size);
+  const previous = points.slice(-size * 2, -size);
+  return avg(recent) - avg(previous);
+}
+
+/**
+ * Time-aware exponential smoothing: the weight of a new session depends on how
+ * long ago the previous one was, so a session after three weeks off moves the
+ * curve more than one on the very next day.
+ */
+export function ewmaSeries(points: E1RMPoint[], tau = EWMA_TAU_DAYS): { date: string; value: number }[] {
+  const out: { date: string; value: number }[] = [];
+  let value: number | null = null;
+  let prevDate: string | null = null;
+
+  for (const p of points) {
+    if (value === null || prevDate === null) {
+      value = p.e1rm;
+    } else {
+      const dt = Math.max(daysBetween(prevDate, p.date), 0);
+      const weight = 1 - Math.exp(-dt / tau);
+      value = value + weight * (p.e1rm - value);
+    }
+    prevDate = p.date;
+    out.push({ date: p.date, value });
+  }
+  return out;
+}
+
+export type TrendSummary = {
+  /** Points the trend was actually computed from. */
+  basis: E1RMPoint[];
+  /** Index into the full series where the trend basis starts. */
+  basisStart: number;
+  /** How many opening sessions were held back as ramp-up. */
+  rampSkipped: number;
+  /** True once a genuine pause split the series. */
+  afterBreak: boolean;
+  slopePerMonth: number | null;
+  blockDelta: number | null;
+  ewma: { date: string; value: number }[];
+  ewmaNow: number | null;
+  /** False when there is too little to say anything honest. */
+  reliable: boolean;
+};
+
+/**
+ * Everything the UI needs to describe progress, with the ramp-up problem
+ * already handled: only the current block counts, and its opening sessions
+ * are excluded from the numbers while staying visible in the chart.
+ */
+export function summarizeTrend(points: E1RMPoint[]): TrendSummary {
+  const blocks = splitBlocks(points);
+  const current = blocks.length > 0 ? blocks[blocks.length - 1] : [];
+  const blockStart = points.length - current.length;
+
+  const canSkipRamp = current.length >= RAMP_SESSIONS + MIN_TREND_POINTS;
+  const rampSkipped = canSkipRamp ? RAMP_SESSIONS : 0;
+  const basis = current.slice(rampSkipped);
+
+  const reliable = basis.length >= MIN_TREND_POINTS;
+  const smoothed = ewmaSeries(current);
+
+  return {
+    basis,
+    basisStart: blockStart + rampSkipped,
+    rampSkipped,
+    afterBreak: blocks.length > 1,
+    slopePerMonth: reliable ? theilSenPerMonth(basis) : null,
+    blockDelta: reliable ? blockCompare(basis) : null,
+    ewma: smoothed,
+    ewmaNow: smoothed.length > 0 ? smoothed[smoothed.length - 1].value : null,
+    reliable,
+  };
+}
+
 // ── Set formatting ─────────────────────────────────────────────
 
 const SIDE_PREFIX: Record<string, string> = { left: 'L ', right: 'R ' };

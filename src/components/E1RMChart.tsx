@@ -4,10 +4,14 @@ import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../context/ThemeContext';
-import { E1RMPoint, EPLEY_REP_LIMIT } from '../lib/analytics';
+import { E1RMPoint, EPLEY_REP_LIMIT, daysBetween } from '../lib/analytics';
 
 interface Props {
   points: E1RMPoint[];
+  /** Smoothed curve to overlay; omitted when another metric is shown. */
+  ewma?: { date: string; value: number }[];
+  /** Points before this index are ramp-up and drawn dimmed. */
+  dimBefore?: number;
 }
 
 const CHART_H = 160;
@@ -16,14 +20,15 @@ const PAD_R   = 14;
 const PAD_TOP = 16;
 const PAD_BOT = 28;
 
-const LINE_COLOR = '#22C55E';
-const WARN_COLOR = '#F97316';
+const LINE_COLOR   = '#22C55E';
+const WARN_COLOR   = '#F97316';
+const SMOOTH_COLOR = '#3B82F6';
 
 /**
  * Single e1RM line over time — one point per session, showing that session's
  * best set. Tapping a point reveals what the estimate was built from.
  */
-export default function E1RMChart({ points }: Props) {
+export default function E1RMChart({ points, ewma, dimBefore = 0 }: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [selected, setSelected] = useState<number | null>(null);
@@ -34,7 +39,7 @@ export default function E1RMChart({ points }: Props) {
   const innerH  = CHART_H - PAD_TOP - PAD_BOT;
 
   const scale = useMemo(() => {
-    const values = points.map(p => p.e1rm);
+    const values = [...points.map(p => p.e1rm), ...(ewma?.map(e => e.value) ?? [])];
     const rawMax = Math.max(...values, 1);
     const rawMin = Math.min(...values, rawMax);
     // Pad the range a little so the line never hugs the frame
@@ -42,6 +47,17 @@ export default function E1RMChart({ points }: Props) {
     const min = Math.max(0, rawMin - span * 0.15);
     const max = rawMax + span * 0.15;
     return { min, max, range: max - min || 1 };
+  }, [points, ewma]);
+
+  /**
+   * Points are placed by real elapsed days, not by index — otherwise a
+   * three-week break looks exactly like two consecutive days.
+   */
+  const timeAxis = useMemo(() => {
+    if (points.length === 0) return { start: '', totalDays: 1 };
+    const start = points[0].date;
+    const totalDays = Math.max(daysBetween(start, points[points.length - 1].date), 1);
+    return { start, totalDays };
   }, [points]);
 
   if (points.length === 0) {
@@ -52,8 +68,10 @@ export default function E1RMChart({ points }: Props) {
     );
   }
 
-  const toX = (i: number) =>
-    PAD_L + (i / Math.max(points.length - 1, 1)) * innerW;
+  const xForDate = (date: string) =>
+    PAD_L + (daysBetween(timeAxis.start, date) / timeAxis.totalDays) * innerW;
+
+  const toX = (i: number) => xForDate(points[i].date);
 
   const toY = (e1rm: number) =>
     PAD_TOP + innerH - ((e1rm - scale.min) / scale.range) * innerH;
@@ -115,13 +133,28 @@ export default function E1RMChart({ points }: Props) {
           {points.length > 1 && (
             <Path
               d={linePath}
-              stroke={LINE_COLOR} strokeWidth={2.5} fill="none"
+              stroke={LINE_COLOR}
+              strokeWidth={ewma ? 1.5 : 2.5}
+              strokeOpacity={ewma ? 0.35 : 1}
+              fill="none"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+          )}
+
+          {/* Smoothed curve sits on top of the raw line when shown */}
+          {ewma && ewma.length > 1 && (
+            <Path
+              d={ewma
+                .map((e, i) => `${i === 0 ? 'M' : 'L'} ${xForDate(e.date).toFixed(1)} ${toY(e.value).toFixed(1)}`)
+                .join(' ')}
+              stroke={SMOOTH_COLOR} strokeWidth={3} fill="none"
               strokeLinecap="round" strokeLinejoin="round"
             />
           )}
 
           {points.map((p, i) => {
             const isActive = selected === i;
+            const isRamp = i < dimBefore;
             const color = p.overEstimated ? WARN_COLOR : LINE_COLOR;
             return (
               <React.Fragment key={`${p.workoutId}-${i}`}>
@@ -135,7 +168,9 @@ export default function E1RMChart({ points }: Props) {
                   cx={toX(i)} cy={toY(p.e1rm)}
                   r={isActive ? 7 : 5}
                   fill={p.overEstimated ? colors.surface : color}
+                  fillOpacity={isRamp ? 0.3 : 1}
                   stroke={color}
+                  strokeOpacity={isRamp ? 0.45 : 1}
                   strokeWidth={p.overEstimated ? 2.5 : isActive ? 2.5 : 0}
                 />
               </React.Fragment>
@@ -178,7 +213,9 @@ export default function E1RMChart({ points }: Props) {
 
         {!active && (
           <Text style={[styles.hint, { color: colors.muted }]}>
-            {hasOverEstimated ? `○ ${t('e1rmWeakPoint')} · ` : ''}{t('e1rmTapHint')}
+            {dimBefore > 0 ? `${t('trendRampNote')} · ` : ''}
+            {hasOverEstimated ? `○ ${t('e1rmWeakPoint')} · ` : ''}
+            {t('e1rmTapHint')}
           </Text>
         )}
       </View>

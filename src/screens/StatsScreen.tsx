@@ -12,7 +12,7 @@ import {
   getExerciseProgressByWeight, ProgressByWeightRow,
   getExerciseSets,
 } from '../storage/database';
-import { buildE1RMSeries, e1rmTrend, E1RMPoint } from '../lib/analytics';
+import { buildE1RMSeries, summarizeTrend, E1RMPoint, TrendSummary } from '../lib/analytics';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
@@ -20,12 +20,17 @@ import RecentSessions from '../components/RecentSessions';
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
 type ChartMode = 'e1rm' | 'byWeight';
+type TrendMetric = 'slope' | 'blocks' | 'ewma';
+const TREND_ORDER: TrendMetric[] = ['slope', 'blocks', 'ewma'];
+
 type ExProgress = {
   name: string;
   points: ProgressByWeightRow[];
   e1rm: E1RMPoint[];
+  trend: TrendSummary;
   expanded: boolean;
   mode: ChartMode;
+  metric: TrendMetric;
 };
 
 export default function StatsScreen() {
@@ -105,12 +110,15 @@ export default function StatsScreen() {
           getExerciseProgressByWeight(name),
           getExerciseSets(name),
         ]);
+        const e1rm = buildE1RMSeries(sets);
         return {
           name,
           points,
-          e1rm: buildE1RMSeries(sets),
+          e1rm,
+          trend: summarizeTrend(e1rm),
           expanded: false,
           mode: 'e1rm' as ChartMode,
+          metric: 'slope' as TrendMetric,
         };
       })
     );
@@ -125,6 +133,40 @@ export default function StatsScreen() {
 
   function setChartMode(name: string, mode: ChartMode) {
     setProgress(prev => prev.map(p => p.name === name ? { ...p, mode } : p));
+  }
+
+  function cycleMetric(name: string) {
+    setProgress(prev => prev.map(p => {
+      if (p.name !== name) return p;
+      const next = TREND_ORDER[(TREND_ORDER.indexOf(p.metric) + 1) % TREND_ORDER.length];
+      return { ...p, metric: next };
+    }));
+  }
+
+  /** The badge next to the chart title: value, unit and what it means. */
+  function describeTrend(trend: TrendSummary, metric: TrendMetric) {
+    if (!trend.reliable) {
+      return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
+    }
+    const fmt = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(1)}`;
+
+    switch (metric) {
+      case 'slope': {
+        const v = trend.slopePerMonth;
+        if (v === null) return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
+        return { value: `${fmt(v)} ${t('trendPerMonthUnit')}`, label: t('trendLabelSlope'), direction: Math.sign(v) };
+      }
+      case 'blocks': {
+        const v = trend.blockDelta;
+        if (v === null) return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
+        return { value: `${fmt(v)} kg`, label: t('trendLabelBlocks'), direction: Math.sign(v) };
+      }
+      case 'ewma': {
+        const v = trend.ewmaNow;
+        if (v === null) return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
+        return { value: `${Math.round(v)} kg`, label: t('trendLabelSmoothed'), direction: 0 };
+      }
+    }
   }
 
   const maxVol = Math.max(...exStats.map(e => e.totalVol), 1);
@@ -194,17 +236,25 @@ export default function StatsScreen() {
                         <View style={styles.chartHeadRow}>
                           <Text style={styles.chartLabel}>{t('chartE1RMHint')}</Text>
                           {(() => {
-                            const trend = e1rmTrend(ex.e1rm);
-                            if (trend === null) return null;
-                            const up = trend >= 0;
+                            const d = describeTrend(ex.trend, ex.metric);
+                            const color = d.direction > 0 ? colors.accent
+                                        : d.direction < 0 ? colors.danger
+                                        : colors.muted;
                             return (
-                              <Text style={[styles.trend, { color: up ? colors.accent : colors.danger }]}>
-                                {up ? '▲' : '▼'} {Math.abs(Math.round(trend))}kg
-                              </Text>
+                              <TouchableOpacity style={styles.trendBadge} onPress={() => cycleMetric(ex.name)}>
+                                <Text style={[styles.trend, { color }]}>
+                                  {d.direction > 0 ? '▲ ' : d.direction < 0 ? '▼ ' : ''}{d.value}
+                                </Text>
+                                <Text style={styles.trendLabel}>{d.label}</Text>
+                              </TouchableOpacity>
                             );
                           })()}
                         </View>
-                        <E1RMChart points={ex.e1rm} />
+                        <E1RMChart
+                          points={ex.e1rm}
+                          ewma={ex.metric === 'ewma' ? ex.trend.ewma : undefined}
+                          dimBefore={ex.trend.basisStart}
+                        />
                       </>
                     ) : (
                       <>
@@ -343,7 +393,9 @@ function makeStyles(c: Colors) {
       textTransform: 'uppercase', letterSpacing: 1,
       marginBottom: 4, paddingHorizontal: 4,
     },
-    trend: { fontFamily: 'BebasNeue_400Regular', fontSize: 16, marginBottom: 4 },
+    trendBadge: { alignItems: 'flex-end', paddingLeft: 6, paddingBottom: 4, minWidth: 92 },
+    trend: { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 0.5 },
+    trendLabel: { fontSize: 9, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: -2 },
 
     // Chart mode toggle
     modeToggle: {
