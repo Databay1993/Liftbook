@@ -181,6 +181,37 @@ export async function deleteCustomExercise(name: string): Promise<void> {
   await db.runAsync('DELETE FROM exercises WHERE name = ? AND is_custom = 1', name);
 }
 
+/** How much history an exercise carries — shown before offering to delete it. */
+export async function getExerciseUsage(name: string): Promise<{ sets: number; workouts: number; templates: number }> {
+  const db = await getDb();
+  const logged = await db.getFirstAsync<{ sets: number; workouts: number }>(
+    'SELECT COUNT(*) as sets, COUNT(DISTINCT workout_id) as workouts FROM sets WHERE exercise_name = ?',
+    name,
+  );
+  const templates = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(DISTINCT template_id) as c FROM template_exercises WHERE exercise_name = ?',
+    name,
+  );
+  return {
+    sets: logged?.sets ?? 0,
+    workouts: logged?.workouts ?? 0,
+    templates: templates?.c ?? 0,
+  };
+}
+
+/**
+ * Removes an exercise and everything referring to it — logged sets included.
+ * Irreversible, so callers must confirm against getExerciseUsage() first.
+ */
+export async function deleteExerciseCompletely(name: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM sets WHERE exercise_name = ?', name);
+  await db.runAsync('DELETE FROM template_exercises WHERE exercise_name = ?', name);
+  await db.runAsync('DELETE FROM exercises WHERE name = ?', name);
+  // Workouts left without a single set would show up as empty entries
+  await db.runAsync('DELETE FROM workouts WHERE id NOT IN (SELECT DISTINCT workout_id FROM sets)');
+}
+
 export async function renameExercise(oldName: string, newName: string): Promise<void> {
   const db = await getDb();
   const trimmed = newName.trim();

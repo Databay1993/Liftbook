@@ -127,6 +127,12 @@ export default {
   contextNoGroup: 'Dieser Übung fehlt eine Muskelgruppe. Ordne sie in den Einstellungen unter „Übungen verwalten" zu, dann kann verglichen werden.',
   contextOrderInferred: 'Bei älteren Trainings wurde die Reihenfolge aus der Speicher-Reihenfolge abgeleitet — meist richtig, aber nicht garantiert.',
 
+  // Delete exercise
+  deleteExerciseTitle: '„{{name}}" löschen?',
+  deleteExerciseUsage: 'Dabei werden {{sets}} Sätze aus {{workouts}} Trainings mitgelöscht. In {{templates}} Trainingsplänen wird die Übung entfernt. Das lässt sich nicht rückgängig machen.',
+  deleteExerciseUnused: 'Für diese Übung ist nichts eingetragen — es geht nichts verloren.',
+  deleteExerciseDone: 'Übung gelöscht ✓',
+
   // Muscle groups
   muscleGroupTitle: 'Muskelgruppe wählen',
   muscleGroupHint: 'Die Muskelgruppe steuert, welche Übungen sich gegenseitig ermüden — Grundlage für den Vergleich in der Statistik.',

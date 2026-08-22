@@ -127,6 +127,12 @@ export default {
   contextNoGroup: 'This exercise has no muscle group yet. Assign one under Settings → Manage Exercises to enable the comparison.',
   contextOrderInferred: 'For older sessions the order was inferred from save order — usually right, but not guaranteed.',
 
+  // Delete exercise
+  deleteExerciseTitle: 'Delete "{{name}}"?',
+  deleteExerciseUsage: 'This also deletes {{sets}} sets from {{workouts}} workouts, and removes the exercise from {{templates}} plans. It cannot be undone.',
+  deleteExerciseUnused: 'Nothing is logged for this exercise — nothing will be lost.',
+  deleteExerciseDone: 'Exercise deleted ✓',
+
   // Muscle groups
   muscleGroupTitle: 'Choose muscle group',
   muscleGroupHint: 'The muscle group decides which exercises fatigue each other — the basis for the comparison view in stats.',

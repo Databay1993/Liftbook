@@ -15,6 +15,7 @@ import { LANGUAGES, changeLanguage } from '../i18n';
 import {
   exportAllData, getAllExercises, renameExercise,
   updateExerciseMuscleGroup, MUSCLE_GROUPS,
+  getExerciseUsage, deleteExerciseCompletely,
 } from '../storage/database';
 import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
 import Toast from '../components/Toast';
@@ -53,6 +54,38 @@ export default function SettingsScreen() {
   async function loadExercises() {
     const all = await getAllExercises();
     setExercises(all.map(e => ({ name: e.name, isCustom: e.isCustom, muscleGroup: e.muscleGroup })));
+  }
+
+  /**
+   * Deleting takes the logged sets with it, so the confirmation names exactly
+   * what is about to be lost rather than asking a generic "are you sure".
+   */
+  async function confirmDelete(name: string) {
+    const usage = await getExerciseUsage(name);
+    const details = usage.sets === 0
+      ? t('deleteExerciseUnused')
+      : t('deleteExerciseUsage', {
+          sets: usage.sets,
+          workouts: usage.workouts,
+          templates: usage.templates,
+        });
+
+    Alert.alert(
+      t('deleteExerciseTitle', { name }),
+      details,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteExerciseCompletely(name);
+            await loadExercises();
+            showToast(t('deleteExerciseDone'));
+          },
+        },
+      ],
+    );
   }
 
   async function assignGroup(name: string, group: string | null) {
@@ -234,6 +267,9 @@ export default function SettingsScreen() {
               </TouchableOpacity>
               <TouchableOpacity style={styles.renameBtn} onPress={() => openRename(ex.name)}>
                 <Text style={styles.renameBtnTxt}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.renameBtn} onPress={() => confirmDelete(ex.name)}>
+                <Text style={styles.renameBtnTxt}>🗑</Text>
               </TouchableOpacity>
             </View>
           ))}

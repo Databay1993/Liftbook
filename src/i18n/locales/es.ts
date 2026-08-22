@@ -126,6 +126,12 @@ export default {
   contextNoGroup: 'Este ejercicio aún no tiene grupo muscular. Asígnalo en Ajustes → Gestionar ejercicios para poder comparar.',
   contextOrderInferred: 'En sesiones antiguas el orden se dedujo del orden de guardado — suele ser correcto, pero no está garantizado.',
 
+  // Delete exercise
+  deleteExerciseTitle: '¿Eliminar «{{name}}»?',
+  deleteExerciseUsage: 'También se borran {{sets}} series de {{workouts}} entrenamientos, y el ejercicio se quita de {{templates}} planes. No se puede deshacer.',
+  deleteExerciseUnused: 'No hay nada registrado para este ejercicio — no se perderá nada.',
+  deleteExerciseDone: 'Ejercicio eliminado ✓',
+
   // Muscle groups
   muscleGroupTitle: 'Elegir grupo muscular',
   muscleGroupHint: 'El grupo muscular decide qué ejercicios se fatigan entre sí — la base de la vista de comparación en estadísticas.',
