@@ -94,6 +94,8 @@ export default {
   chartE1RM: 'e1RM',
   chartByWeight: 'Reps por peso',
   chartE1RMHint: '1RM estimado — una serie por sesión',
+  scopeFresh: '↳ tendencia solo de sesiones con el ejercicio en fresco',
+  scopeAfter: '↳ tendencia solo de sesiones después de {{list}}',
   chartByWeightHint: 'Reps por peso — un color por peso',
   e1rmTapHint: 'Toca un punto para ver detalles',
   e1rmWeakPoint: 'punto hueco = estimación alta',

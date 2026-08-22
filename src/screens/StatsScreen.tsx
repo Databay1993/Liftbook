@@ -36,6 +36,10 @@ type ExProgress = {
   e1rm: E1RMPoint[];
   trend: TrendSummary;
   contexts: ContextAnalysis;
+  /** Context the trend was restricted to, null when the whole history is used. */
+  trendPreceding: string[] | null;
+  /** True when sessions were left out because they are not comparable. */
+  trendFiltered: boolean;
   muscleGroup: string | null;
   expanded: boolean;
   mode: ChartMode;
@@ -127,12 +131,24 @@ export default function StatsScreen() {
         ]);
         const e1rm = buildE1RMSeries(sets, setRule);
         const muscleGroup = groupOf.get(name) ?? null;
+        const contexts = analyzeContexts(e1rm, compositions, name, muscleGroup);
+
+        // The line should compare like with like, so the trend uses only the
+        // sessions trained under the same pre-fatigue as the most recent one.
+        // Without enough of those there is nothing to filter by, and the whole
+        // history is the honest fallback.
+        const currentGroup = contexts.groups.find(g => g.key === contexts.currentKey) ?? null;
+        const filtered = !!currentGroup && currentGroup.points.length >= 2;
+        const trendPoints = filtered ? currentGroup!.points : e1rm;
+
         return {
           name,
           points,
           e1rm,
-          trend: summarizeTrend(e1rm),
-          contexts: analyzeContexts(e1rm, compositions, name, muscleGroup),
+          trend: summarizeTrend(trendPoints),
+          contexts,
+          trendPreceding: filtered ? currentGroup!.preceding : null,
+          trendFiltered: filtered && currentGroup!.points.length < e1rm.length,
           muscleGroup,
           expanded: false,
           mode: 'e1rm' as ChartMode,
@@ -166,30 +182,31 @@ export default function StatsScreen() {
    * so the badge value can be checked against the picture instead of trusted.
    */
   function chartViewFor(ex: ExProgress): { overlay: ChartOverlay; used: Set<number> } {
-    const total = ex.e1rm.length;
-    const range = (from: number) => new Set(
-      Array.from({ length: Math.max(total - from, 0) }, (_, i) => from + i)
+    // The trend basis is no longer a contiguous tail of the series — filtering
+    // by context can leave gaps — so points are matched by workout, not index
+    const indicesOf = (points: { workoutId: number }[]) => new Set(
+      points
+        .map(p => ex.e1rm.findIndex(q => q.workoutId === p.workoutId))
+        .filter(i => i >= 0)
     );
 
     switch (ex.metric) {
       case 'slope':
         return {
           overlay: { kind: 'slope', line: ex.trend.slopeLine },
-          used: range(ex.trend.basisStart),
+          used: indicesOf(ex.trend.basis),
         };
       case 'blocks': {
         const groups = ex.trend.groups;
-        const used = groups
-          ? new Set([...groups.previous.points, ...groups.recent.points]
-              .map(p => ex.e1rm.findIndex(q => q.workoutId === p.workoutId))
-              .filter(i => i >= 0))
-          : range(ex.trend.basisStart);
-        return { overlay: { kind: 'blocks', groups }, used };
+        return {
+          overlay: { kind: 'blocks', groups },
+          used: indicesOf(groups ? [...groups.previous.points, ...groups.recent.points] : ex.trend.basis),
+        };
       }
       case 'ewma':
         return {
           overlay: { kind: 'ewma', series: ex.trend.ewma },
-          used: range(ex.trend.blockStart),
+          used: indicesOf(ex.trend.basis),
         };
     }
   }
@@ -302,7 +319,17 @@ export default function StatsScreen() {
                     {ex.mode === 'e1rm' ? (
                       <>
                         <View style={styles.chartHeadRow}>
-                          <Text style={styles.chartLabel}>{t('chartE1RMHint')}</Text>
+                          <Text style={styles.chartLabel}>
+                            {t('chartE1RMHint')}
+                            {ex.trendPreceding !== null && (
+                              <Text style={styles.chartScope}>
+                                {'\n'}
+                                {ex.trendPreceding.length === 0
+                                  ? t('scopeFresh')
+                                  : t('scopeAfter', { list: ex.trendPreceding.join(' + ') })}
+                              </Text>
+                            )}
+                          </Text>
                           {(() => {
                             const d = describeTrend(ex.trend, ex.metric);
                             const color = d.direction > 0 ? colors.accent
@@ -487,6 +514,7 @@ function makeStyles(c: Colors) {
       textTransform: 'uppercase', letterSpacing: 1,
       marginBottom: 4, paddingHorizontal: 4,
     },
+    chartScope: { fontSize: 10, color: c.accent, textTransform: 'none', letterSpacing: 0 },
     trendBadge: { alignItems: 'flex-end', paddingLeft: 6, paddingBottom: 4, minWidth: 92 },
     trend: { fontFamily: 'BebasNeue_400Regular', fontSize: 17, letterSpacing: 0.5 },
     trendLabel: { fontSize: 9, color: c.muted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: -2 },

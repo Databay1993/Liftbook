@@ -95,6 +95,8 @@ export default {
   chartE1RM: 'e1RM',
   chartByWeight: 'Reps per weight',
   chartE1RMHint: 'Estimated 1RM — one set per session',
+  scopeFresh: '↳ trend from sessions where the exercise came fresh',
+  scopeAfter: '↳ trend from sessions after {{list}}',
   chartByWeightHint: 'Reps per weight — one color per weight',
   e1rmTapHint: 'Tap a point for details',
   e1rmWeakPoint: 'hollow point = estimate runs high',

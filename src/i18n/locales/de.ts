@@ -95,6 +95,8 @@ export default {
   chartE1RM: 'e1RM',
   chartByWeight: 'Wdh pro Gewicht',
   chartE1RMHint: 'Geschätztes 1RM — ein Satz je Training',
+  scopeFresh: '↳ Trend nur aus Trainings, in denen die Übung frisch kam',
+  scopeAfter: '↳ Trend nur aus Trainings nach {{list}}',
   chartByWeightHint: 'Wiederholungen pro Gewicht — jede Farbe = ein Gewicht',
   e1rmTapHint: 'Punkt antippen für Details',
   e1rmWeakPoint: 'offener Punkt = geschätzt zu hoch',
