@@ -1,0 +1,45 @@
+name: Android Build
+
+# Starts an Android APK build on EAS without needing the PC.
+# Trigger by hand: Actions → Android Build → Run workflow
+# (works from the GitHub app on the phone).
+#
+# NOTE: the very first Android build must be run once from a terminal
+#   eas build --platform android --profile preview
+# so EAS can generate the signing keystore — that step needs an
+# interactive prompt and cannot run here. Every build after that works.
+#
+# Requires the EXPO_TOKEN repository secret.
+# Builds count against the free plan quota (15 Android builds/month),
+# which is why this only ever runs on manual dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build profile from eas.json'
+        required: false
+        default: 'preview'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Start Android build
+        env:
+          PROFILE: ${{ github.event.inputs.profile || 'preview' }}
+        run: eas build --platform android --profile "$PROFILE" --non-interactive --no-wait

@@ -12,6 +12,9 @@ on:
   push:
     branches:
       - claude/sports-app-repo-evxyv7
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
   workflow_dispatch:
     inputs:
       message:

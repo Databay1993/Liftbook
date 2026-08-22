@@ -22,7 +22,13 @@ launch downloads the update, the second shows it.
 
 Alternatively `.github/workflows/eas-update.yml` publishes the same update
 automatically on every push to the feature branch (and can be triggered by
-hand from the GitHub app). It needs the `EXPO_TOKEN` repository secret.
+hand from the GitHub app). It needs the `EXPO_TOKEN` repository secret,
+which is set — CI is the normal path now, the PC command is the fallback.
+
+`.github/workflows/eas-build-android.yml` starts an Android APK build on
+manual dispatch. It only works after the first Android build has been run
+once from a terminal, because generating the keystore needs an interactive
+prompt. Builds count against the free quota, so never trigger it on push.
 
 Constraints this implies:
 
