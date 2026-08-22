@@ -25,7 +25,7 @@ const LEGACY_GROUPS: Record<string, string> = {
 
 const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   // Built-in exercises
-  'Bench Press':      'chest,triceps',
+  'Bench Press':      'chest,shoulders,triceps',
   'Squat':            'quads,glutes',
   'Deadlift':         'lower_back,hamstrings,glutes',
   'Overhead Press':   'shoulders,triceps',
@@ -37,23 +37,23 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Lat Pulldown':     'back,biceps',
 
   // The user's own exercises
-  'Brust Presse':      'chest,triceps',
-  'Bulgarien squat':   'quads,glutes',
+  'Brustpresse':      'chest,triceps',
+  'Bulgarische Kniebeuge':   'quads,glutes',
   'Butterfly':         'chest',
-  'Captainchair':      'core',
+  'Beinheben am Barren':      'core',
   'Copenhagen Plank':  'core,adductors',
-  'Hammer curl':       'biceps',
+  'Hammercurl':       'biceps',
   'Klimmzug crunch':   'core',
-  'Leg extention':     'quads',
-  'Legcurl':           'hamstrings',
+  'Beinstrecker':     'quads',
+  'Beinbeuger liegend':           'hamstrings',
   'Reverse Butterfly': 'shoulders',
   'Rudern':            'back,biceps',
-  'Rücken Strecker':   'lower_back',
-  'SZ Bizeps':         'biceps',
-  'Seated leg curl':   'hamstrings',
+  'Rückenstrecker':   'lower_back',
+  'SZ-Curl':         'biceps',
+  'Beinbeuger sitzend':   'hamstrings',
   'Seitheben':         'shoulders',
-  'Squat Air':         'quads,glutes',
-  'Wade exzentrisch':  'calves',
+  'Air Squat':         'quads,glutes',
+  'Wadenheben exzentrisch':  'calves',
 };
 
 export async function getDb() {
@@ -164,6 +164,32 @@ export async function initDb() {
     );
   `);
 
+  // Tidy up names that were typed in a mix of languages and spellings.
+  // Runs before anything keyed by name, so everything below sees the new ones.
+  await runOnce(db, 'rename-german-1', async () => {
+    const renames: Record<string, string> = {
+      'Brust Presse':     'Brustpresse',
+      'Bulgarien squat':  'Bulgarische Kniebeuge',
+      'Captainchair':     'Beinheben am Barren',
+      'Hammer curl':      'Hammercurl',
+      'Leg extention':    'Beinstrecker',
+      'Legcurl':          'Beinbeuger liegend',
+      'Rücken Strecker':  'Rückenstrecker',
+      'SZ Bizeps':        'SZ-Curl',
+      'Seated leg curl':  'Beinbeuger sitzend',
+      'Squat Air':        'Air Squat',
+      'Wade exzentrisch': 'Wadenheben exzentrisch',
+    };
+    for (const [from, to] of Object.entries(renames)) {
+      try {
+        await renameExercise(from, to);
+      } catch {
+        // Target name already taken — leave the entry alone rather than
+        // risking two exercises collapsing into one by accident
+      }
+    }
+  });
+
   // Expand the old single-group values into the finer-grained ones
   for (const [legacy, expanded] of Object.entries(LEGACY_GROUPS)) {
     await db.runAsync(
@@ -198,7 +224,7 @@ export async function initDb() {
   // the defaults need their own pass.
   await runOnce(db, 'groups-main-movers-1', async () => {
     const corrections: Record<string, string> = {
-      'Rücken Strecker': 'back',   // glutes only assist here
+      'Rückenstrecker': 'back',   // glutes only assist here
     };
     for (const [name, group] of Object.entries(corrections)) {
       await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);
@@ -210,12 +236,20 @@ export async function initDb() {
   // right after is unaffected.
   await runOnce(db, 'groups-lower-back-1', async () => {
     const corrections: Record<string, string> = {
-      'Rücken Strecker': 'lower_back',
+      'Rückenstrecker': 'lower_back',
       'Deadlift':        'lower_back,hamstrings,glutes',
     };
     for (const [name, group] of Object.entries(corrections)) {
       await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);
     }
+  });
+
+  // The front delt reaches roughly 90% of the chest's activation in the bench
+  // press, well past the threshold, so shoulder work afterwards is affected.
+  await runOnce(db, 'groups-bench-shoulders-1', async () => {
+    await db.runAsync(
+      "UPDATE exercises SET muscle_group = 'chest,shoulders,triceps' WHERE name = 'Bench Press'",
+    );
   });
 
   // Migration: add workout_id tracking to workouts (already exists)
