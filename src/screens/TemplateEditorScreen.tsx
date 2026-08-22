@@ -9,7 +9,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { getAllExercises, createTemplate, addCustomExercise } from '../storage/database';
+import {
+  getAllExercises, createTemplate, updateTemplate, addCustomExercise, Template,
+} from '../storage/database';
 import Toast from '../components/Toast';
 
 const ITEM_H = 60;
@@ -19,9 +21,10 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSaved: () => void;
+  template?: Template | null;   // set → edit mode, null/undefined → create mode
 }
 
-export default function TemplateEditorScreen({ visible, onClose, onSaved }: Props) {
+export default function TemplateEditorScreen({ visible, onClose, onSaved, template }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
@@ -45,8 +48,12 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
   useEffect(() => { selectedRef.current = selectedExercises; }, [selectedExercises]);
 
   useEffect(() => {
-    if (visible) { loadExercises(); setName(''); setSelectedExercises([]); }
-  }, [visible]);
+    if (visible) {
+      loadExercises();
+      setName(template?.name ?? '');
+      setSelectedExercises(template?.exercises ?? []);
+    }
+  }, [visible, template?.id]);
 
   async function loadExercises() {
     setAllExercises(await getAllExercises());
@@ -115,6 +122,17 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
     setSelectedExercises(p => p.includes(ex) ? p.filter(e => e !== ex) : [...p, ex]);
   }
 
+  function moveExercise(from: number, dir: -1 | 1) {
+    const to = from + dir;
+    setSelectedExercises(prev => {
+      if (to < 0 || to >= prev.length) return prev;
+      const arr = [...prev];
+      [arr[from], arr[to]] = [arr[to], arr[from]];
+      return arr;
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
+
   async function handleAddNew() {
     const n = newExName.trim();
     if (!n) return;
@@ -138,7 +156,8 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
       return;
     }
     try {
-      await createTemplate(trimmed, selectedExercises);
+      if (template) await updateTemplate(template.id, trimmed, selectedExercises);
+      else          await createTemplate(trimmed, selectedExercises);
       onSaved();
       onClose();
     } catch {
@@ -161,7 +180,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
           <TouchableOpacity onPress={onClose} hitSlop={{ top:10,bottom:10,left:10,right:10 }}>
             <Text style={styles.cancelBtn}>✕</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('newTemplate')}</Text>
+          <Text style={styles.headerTitle}>{template ? t('editTemplate') : t('newTemplate')}</Text>
           <TouchableOpacity
             onPress={handleSave}
             style={[styles.saveBtn, !canSave && styles.saveBtnOff]}
@@ -169,7 +188,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
             activeOpacity={canSave ? 0.7 : 1}
           >
             <Text style={[styles.saveBtnTxt, !canSave && { color: colors.muted }]}>
-              {t('createTemplate')}
+              {template ? t('save') : t('createTemplate')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -212,17 +231,37 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
                   >
                     <TouchableOpacity
                       onPress={() => toggleExercise(ex)}
-                      hitSlop={{ top:10,bottom:10,left:10,right:10 }}
+                      hitSlop={{ top:10,bottom:10,left:8,right:8 }}
                     >
                       <Text style={styles.removeTxt}>✕</Text>
                     </TouchableOpacity>
 
+                    <Text style={styles.posNum}>{idx + 1}</Text>
+
                     <Text style={styles.rowName} numberOfLines={1}>{ex}</Text>
+
+                    <TouchableOpacity
+                      style={[styles.moveBtn, idx === 0 && styles.moveBtnOff]}
+                      onPress={() => moveExercise(idx, -1)}
+                      disabled={idx === 0}
+                      hitSlop={{ top:8,bottom:8,left:4,right:4 }}
+                    >
+                      <Text style={[styles.moveBtnTxt, idx === 0 && styles.moveBtnTxtOff]}>↑</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.moveBtn, idx === selectedExercises.length - 1 && styles.moveBtnOff]}
+                      onPress={() => moveExercise(idx, 1)}
+                      disabled={idx === selectedExercises.length - 1}
+                      hitSlop={{ top:8,bottom:8,left:4,right:4 }}
+                    >
+                      <Text style={[styles.moveBtnTxt, idx === selectedExercises.length - 1 && styles.moveBtnTxtOff]}>↓</Text>
+                    </TouchableOpacity>
 
                     <View
                       {...prs[idx]?.panHandlers}
                       style={styles.handle}
-                      hitSlop={{ top:10,bottom:10,left:10,right:10 }}
+                      hitSlop={{ top:10,bottom:10,left:4,right:4 }}
                     >
                       <Text style={styles.handleTxt}>☰</Text>
                     </View>
@@ -296,7 +335,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved }: Prop
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
-            renderItem={({ item }) => {
+            renderItem={({ item }: { item: typeof allExercises[0] }) => {
               const sel = selectedExercises.includes(item.name);
               return (
                 <TouchableOpacity
@@ -370,8 +409,8 @@ function makeStyles(c: Colors) {
       borderColor: c.border,
       borderRadius: 8,
       marginBottom: 6,
-      paddingHorizontal: 12,
-      gap: 10,
+      paddingHorizontal: 10,
+      gap: 6,
     },
     rowLifted: {
       borderColor: c.accent,
@@ -386,8 +425,29 @@ function makeStyles(c: Colors) {
     removeTxt: { color: c.muted, fontSize: 16 },
     rowName:   { flex: 1, color: c.text, fontSize: 15 },
 
-    handle:    { padding: 10, justifyContent: 'center', alignItems: 'center' },
-    handleTxt: { color: c.muted, fontSize: 22 },
+    posNum: {
+      fontFamily: 'BebasNeue_400Regular',
+      fontSize: 18,
+      color: c.accent,
+      minWidth: 18,
+      textAlign: 'center',
+    },
+
+    moveBtn: {
+      width: 30, height: 30,
+      borderRadius: 6,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    moveBtnOff:    { opacity: 0.3 },
+    moveBtnTxt:    { color: c.accent, fontSize: 15, fontWeight: '700' },
+    moveBtnTxtOff: { color: c.muted },
+
+    handle:    { paddingHorizontal: 4, justifyContent: 'center', alignItems: 'center' },
+    handleTxt: { color: c.muted, fontSize: 20 },
 
     dropLine: {
       height: 2,

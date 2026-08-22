@@ -30,6 +30,7 @@ export default function HomeScreen({ navigation }: any) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [lastTrainedLabel, setLastTrainedLabel] = useState<string | null>(null);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [editTemplate, setEditTemplate] = useState<Template | null>(null);
 
   function showToast(msg: string) {
     setToast(msg);
@@ -159,6 +160,9 @@ export default function HomeScreen({ navigation }: any) {
                   >
                     <Text style={styles.startTemplateBtnText}>{t('startFromTemplate')} →</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity onPress={() => { setEditTemplate(tmpl); setShowTemplateEditor(true); }}>
+                    <Text style={styles.deleteTemplateBtn}>✏️</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity onPress={() => handleDeleteTemplate(tmpl.id)}>
                     <Text style={styles.deleteTemplateBtn}>🗑</Text>
                   </TouchableOpacity>
@@ -195,7 +199,8 @@ export default function HomeScreen({ navigation }: any) {
 
       <TemplateEditorScreen
         visible={showTemplateEditor}
-        onClose={() => setShowTemplateEditor(false)}
+        template={editTemplate}
+        onClose={() => { setShowTemplateEditor(false); setEditTemplate(null); }}
         onSaved={() => { loadAll(); showToast(t('saved')); }}
       />
     </View>

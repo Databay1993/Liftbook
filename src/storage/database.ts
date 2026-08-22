@@ -430,6 +430,18 @@ export async function createTemplate(name: string, exercises: string[]): Promise
   }
 }
 
+export async function updateTemplate(id: number, name: string, exercises: string[]): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE templates SET name = ? WHERE id = ?', name.trim(), id);
+  await db.runAsync('DELETE FROM template_exercises WHERE template_id = ?', id);
+  for (let i = 0; i < exercises.length; i++) {
+    await db.runAsync(
+      'INSERT INTO template_exercises (template_id, exercise_name, sort_order) VALUES (?, ?, ?)',
+      id, exercises[i], i
+    );
+  }
+}
+
 export async function deleteTemplate(id: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM templates WHERE id = ?', id);
