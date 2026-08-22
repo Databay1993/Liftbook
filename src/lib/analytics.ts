@@ -49,10 +49,20 @@ function isBetter(a: E1RMPoint, b: E1RMPoint): boolean {
  * how hard the previous set was and how long the rest lasted. It assumes the
  * first set is a working set, not a warm-up.
  *
- * `best` takes the strongest set instead, which tolerates warm-ups and
- * ramp-ups but lets a light high-rep set outrank a heavy low-rep one.
+ * `best` takes the strongest set at or above the opening weight instead,
+ * which tolerates warm-ups and ramp-ups — there the later set is heavier —
+ * while keeping back-off sets from winning on rep count alone.
  */
 export type SetRule = 'first' | 'best';
+
+/** The weight of each session's opening set, keyed by workout. */
+function openingWeights(rows: ExerciseSetRow[]): Map<number, number> {
+  const opening = new Map<number, number>();
+  for (const row of rows) {
+    if (row.setNumber === 1) opening.set(row.workoutId, parseFloat(row.weight) || 0);
+  }
+  return opening;
+}
 
 /**
  * Reduces every training session to one representative set and returns one
@@ -60,9 +70,19 @@ export type SetRule = 'first' | 'best';
  */
 export function buildE1RMSeries(rows: ExerciseSetRow[], rule: SetRule = 'first'): E1RMPoint[] {
   const bySession = new Map<number, E1RMPoint>();
+  const opening = rule === 'best' ? openingWeights(rows) : null;
 
   for (const row of rows) {
     if (rule === 'first' && row.setNumber !== 1) continue;
+
+    // A back-off set is not a better set, it serves a different purpose. Only
+    // sets at or above the opening weight compete, which still lets warm-ups
+    // and ramp-ups work — there the later set is the heavier one.
+    if (opening) {
+      const start = opening.get(row.workoutId) ?? 0;
+      if ((parseFloat(row.weight) || 0) < start) continue;
+    }
+
     const weight = parseFloat(row.weight);
     const reps = parseFloat(row.reps);
     const e1rm = epleyE1RM(weight, reps);

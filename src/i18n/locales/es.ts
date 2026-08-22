@@ -139,8 +139,8 @@ export default {
   setRuleHint: 'Qué serie representa a un ejercicio en las estadísticas. Afecta a e1RM, tendencia, comparación y «reps por peso» — no al volumen ni a los récords, que siempre cuentan todas las series.',
   setRuleFirst: 'Solo la primera serie',
   setRuleFirstDesc: 'Mismas condiciones en cada sesión — la primera serie es la única que no depende de lo dura que fue la anterior. Requiere que no registres series de calentamiento.',
-  setRuleBest: 'Mejor serie',
-  setRuleBestDesc: 'La serie con el e1RM más alto. Tolera calentamientos y series progresivas, pero una serie ligera con muchas reps puede superar a una pesada.',
+  setRuleBest: 'Mejor serie desde el peso inicial',
+  setRuleBestDesc: 'La serie más fuerte, pero solo entre las que pesan al menos como la primera. Los calentamientos y las series progresivas siguen contando — ahí la serie posterior es la más pesada — mientras que las series de descarga con menos peso quedan fuera.',
 
   // Muscle groups
   muscle_chest: 'Pecho',
@@ -182,7 +182,7 @@ export default {
   legendE1RMBody: 'Lo que teóricamente levantarías una sola vez, extrapolado desde una serie normal con la fórmula de Epley: 5 reps con 80 kg dan unos 93 kg. La ventaja frente al peso puro: 80 kg × 8 vale más que 80 kg × 5, aunque el peso sea el mismo.',
 
   legendBestSetTitle: 'Qué serie cuenta',
-  legendBestSetBody: 'Exactamente una serie representa al ejercicio por sesión. Por defecto es la primera: es la única que se hace en las mismas condiciones cada vez — a partir de la segunda todo depende de lo dura que fue la anterior y de cuánto descansaste. Cambiable a «mejor serie» en Ajustes si registras calentamientos o subes progresivamente. El volumen y los récords siempre cuentan todas las series.',
+  legendBestSetBody: 'Exactamente una serie representa al ejercicio por sesión. Cuál, se ajusta en Ajustes → Regla de estadísticas.\n\nSolo la primera serie (por defecto): es la única que se hace en las mismas condiciones cada vez. A partir de la segunda todo depende de lo dura que fue la anterior y de cuánto descansaste. Requiere que no registres calentamientos — si no, la estadística mide tu calentamiento.\n\nMejor serie desde el peso inicial: la serie más fuerte, pero solo entre las que pesan al menos como la primera. Los calentamientos y las progresiones siguen funcionando, porque ahí la serie posterior es más pesada. Una serie de descarga con menos peso no puede ganar — si no, una serie ligera con muchas reps superaría a la pesada y la línea saltaría entre dos tipos de trabajo distintos.\n\nEl volumen y los récords siempre cuentan todas las series.',
 
   legendRepLimitTitle: 'Por qué algunos puntos son huecos',
   legendRepLimitBody: 'Por encima de {{limit}} repeticiones la fórmula se dispara: 20 reps ligeras calculan más que una triple pesada de verdad. Por eso esas series siempre pierden frente a una normal. Si aun así una sostiene la sesión, su punto se dibuja hueco: el valor está, pero léelo con cuidado.',

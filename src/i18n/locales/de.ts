@@ -140,8 +140,8 @@ export default {
   setRuleHint: 'Welcher Satz eine Übung in der Statistik vertritt. Betrifft e1RM, Trend, Vergleich und „Wdh pro Gewicht" — nicht Volumen und Rekorde, die zählen immer alle Sätze.',
   setRuleFirst: 'Nur der erste Satz',
   setRuleFirstDesc: 'Gleiche Bedingungen bei jedem Training — der erste Satz ist der einzige, der nicht davon abhängt, wie hart der vorherige war. Setzt voraus, dass du keine Aufwärmsätze einträgst.',
-  setRuleBest: 'Bester Satz',
-  setRuleBestDesc: 'Der Satz mit dem höchsten e1RM. Verträgt Aufwärmsätze und Hochtasten, aber ein leichter Satz mit vielen Wiederholungen kann einen schweren verdrängen.',
+  setRuleBest: 'Bester Satz ab Startgewicht',
+  setRuleBestDesc: 'Der stärkste Satz, aber nur solche mit mindestens dem Gewicht des ersten Satzes. Damit zählen Aufwärmsätze und Hochtasten mit — dort ist der spätere Satz ja schwerer — während Abfallsätze mit weniger Gewicht draußen bleiben.',
 
   // Muscle groups
   muscle_chest: 'Brust',
@@ -183,7 +183,7 @@ export default {
   legendE1RMBody: 'Was du theoretisch einmal schaffen würdest, hochgerechnet aus einem normalen Satz. Nach der Epley-Formel: 5 Wiederholungen mit 80 kg ergeben rund 93 kg. Der Vorteil gegenüber dem reinen Gewicht: Ein Satz mit 80 kg × 8 zählt mehr als 80 kg × 5, obwohl das Gewicht gleich ist.',
 
   legendBestSetTitle: 'Welcher Satz zählt',
-  legendBestSetBody: 'Pro Training vertritt genau ein Satz die Übung. Voreingestellt ist der erste: Er ist der einzige, der jedes Mal unter gleichen Bedingungen stattfindet — ab Satz zwei hängt alles davon ab, wie hart der vorherige war und wie lange du Pause gemacht hast. Umstellbar in den Einstellungen auf „bester Satz", falls du Aufwärmsätze mitschreibst oder dich hochtastest. Volumen und Rekorde zählen unabhängig davon immer alle Sätze.',
+  legendBestSetBody: 'Pro Training vertritt genau ein Satz die Übung. Welcher, stellst du unter Einstellungen → Statistik-Regel ein.\n\nNur der erste Satz (Voreinstellung): Er ist der einzige, der jedes Mal unter gleichen Bedingungen stattfindet. Ab Satz zwei hängt alles davon ab, wie hart der vorherige war und wie lange du Pause gemacht hast. Setzt voraus, dass du keine Aufwärmsätze einträgst — sonst misst die Statistik dein Aufwärmen.\n\nBester Satz ab Startgewicht: Der stärkste Satz, aber nur solche, die mindestens so schwer sind wie dein erster. Aufwärmen und Hochtasten funktionieren damit weiter, weil der spätere Satz dort schwerer ist. Ein Abfallsatz mit weniger Gewicht kann dagegen nicht gewinnen — sonst würde ein leichter Satz mit vielen Wiederholungen deinen schweren verdrängen, und die Linie spränge zwischen zwei verschiedenen Arten von Arbeit hin und her.\n\nVolumen und Rekorde zählen unabhängig davon immer alle Sätze.',
 
   legendRepLimitTitle: 'Warum manche Punkte hohl sind',
   legendRepLimitBody: 'Über {{limit}} Wiederholungen rechnet die Formel zu hoch — 20 leichte Wiederholungen ergeben rechnerisch mehr als eine echte schwere Dreierserie. Solche Sätze verlieren deshalb immer gegen einen normalen Satz. Trägt trotzdem einer ein Training, wird der Punkt hohl gezeichnet: Der Wert steht da, ist aber mit Vorsicht zu lesen.',

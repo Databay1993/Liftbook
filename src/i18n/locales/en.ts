@@ -140,8 +140,8 @@ export default {
   setRuleHint: 'Which set represents an exercise in the statistics. Affects e1RM, trend, comparison and "reps per weight" — not volume and records, which always count every set.',
   setRuleFirst: 'First set only',
   setRuleFirstDesc: 'Same conditions every session — the first set is the only one that does not depend on how hard the previous one was. Assumes you do not log warm-up sets.',
-  setRuleBest: 'Best set',
-  setRuleBestDesc: 'The set with the highest e1RM. Tolerates warm-ups and ramp-ups, but a light high-rep set can outrank a heavy one.',
+  setRuleBest: 'Best set from opening weight',
+  setRuleBestDesc: 'The strongest set, but only among those at least as heavy as your first. Warm-ups and ramp-ups still count — there the later set is the heavier one — while back-off sets at lower weight stay out.',
 
   // Muscle groups
   muscle_chest: 'Chest',
@@ -183,7 +183,7 @@ export default {
   legendE1RMBody: 'What you could theoretically lift once, extrapolated from a normal set using the Epley formula: 5 reps at 80 kg works out to about 93 kg. The advantage over raw weight: 80 kg × 8 counts for more than 80 kg × 5, even though the weight is identical.',
 
   legendBestSetTitle: 'Which set counts',
-  legendBestSetBody: 'Exactly one set represents the exercise per session. The first set is the default: it is the only one performed under the same conditions every time — from the second set on, everything depends on how hard the previous one was and how long the rest lasted. Switchable to "best set" in Settings if you log warm-ups or ramp up. Volume and records always count every set regardless.',
+  legendBestSetBody: 'Exactly one set represents the exercise per session. Which one is set under Settings → Statistics rule.\n\nFirst set only (default): the only set performed under the same conditions every time. From the second set on, everything depends on how hard the previous one was and how long the rest lasted. Assumes you do not log warm-ups — otherwise the statistics measure your warm-up.\n\nBest set from opening weight: the strongest set, but only among those at least as heavy as your first. Warm-ups and ramp-ups keep working, since there the later set is the heavier one. A back-off set at lower weight cannot win — otherwise a light high-rep set would outrank your heavy one and the line would alternate between two different kinds of work.\n\nVolume and records always count every set regardless.',
 
   legendRepLimitTitle: 'Why some points are hollow',
   legendRepLimitBody: 'Above {{limit}} reps the formula runs high — 20 light reps compute to more than a genuine heavy triple. Such sets therefore always lose to a normal set. If one still carries a session, its point is drawn hollow: the value is shown, but read it with care.',
