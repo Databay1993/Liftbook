@@ -163,6 +163,7 @@ export default {
   themeEnergy: 'Energy',
   themeChalk: 'Chalk',
   about: 'Acerca de',
+  build: 'Compilación',
   version: 'Versión',
 
   // Navigation

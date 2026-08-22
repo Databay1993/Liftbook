@@ -13,6 +13,7 @@ import { themes, ThemeId, Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { LANGUAGES, changeLanguage } from '../i18n';
 import { exportAllData, getAllExercises, renameExercise } from '../storage/database';
+import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
 import Toast from '../components/Toast';
 
 const REST_KEY = '@liftbook_rest';
@@ -223,7 +224,15 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('about').toUpperCase()}</Text>
         <View style={styles.aboutCard}>
           <Text style={styles.aboutAppName}>Liftbook</Text>
-          <Text style={styles.aboutVersion}>{t('version')} 1.0.0</Text>
+          <Text style={styles.aboutVersion}>
+            {t('version')} 1.0.0 · {t('build')} {BUILD_NUMBER}
+          </Text>
+          <Text style={styles.aboutBuildMeta}>
+            {new Date(BUILT_AT).toLocaleString(undefined, {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })} · {COMMIT}
+          </Text>
           <Text style={styles.aboutDesc}>
             Minimal workout tracker. Log lifts, track PRs, see progress.
           </Text>
@@ -470,7 +479,8 @@ function makeStyles(c: Colors) {
       gap: 4,
     },
     aboutAppName: { fontFamily: 'BebasNeue_400Regular', fontSize: 22, letterSpacing: 2, color: c.text },
-    aboutVersion: { fontSize: 12, color: c.muted },
+    aboutVersion: { fontSize: 12, color: c.accent, fontWeight: '600' },
+    aboutBuildMeta: { fontSize: 11, color: c.muted },
     aboutDesc: { fontSize: 14, color: c.muted, marginTop: 8, lineHeight: 20 },
   });
 }

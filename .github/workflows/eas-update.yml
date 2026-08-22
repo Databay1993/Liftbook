@@ -27,6 +27,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # generate-version.js counts commits, which needs the full history
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -39,6 +42,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - run: npm ci
+
+      - name: Stamp build number
+        run: node scripts/generate-version.js
 
       - name: Publish update
         env:

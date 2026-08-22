@@ -164,6 +164,7 @@ export default {
   themeEnergy: 'Energy',
   themeChalk: 'Chalk',
   about: 'About',
+  build: 'Build',
   version: 'Version',
 
   // Navigation
