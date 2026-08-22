@@ -445,6 +445,64 @@ export function groupAverage(group: ContextGroup): number {
   return group.points.reduce((s, p) => s + p.e1rm, 0) / group.points.length;
 }
 
+// ── Predicting what a weight should be good for ────────────────
+
+/**
+ * The level to expect from a context right now: the median of its three most
+ * recent sessions, so one outstanding or one miserable day does not set the
+ * expectation on its own.
+ */
+export function contextReference(group: ContextGroup | undefined | null): number | null {
+  if (!group || group.points.length === 0) return null;
+  return median(group.points.slice(-3).map(p => p.e1rm));
+}
+
+export type RepsEstimate = {
+  reps: number;
+  /** Sessions the estimate is based on. */
+  sessions: number;
+  /** False when no session shared today's fatigue context. */
+  contextMatched: boolean;
+  /** The context the estimate came from, for labelling. */
+  preceding: string[];
+};
+
+/**
+ * How many reps a weight should be good for, given how the exercise went in
+ * comparable sessions.
+ *
+ * Rowing after pull-ups and rowing done fresh are different situations, so
+ * the estimate prefers sessions trained under today's fatigue context and
+ * only falls back to the overall picture when there are none — saying so
+ * rather than quietly mixing the two.
+ */
+export function estimateReps(
+  analysis: ContextAnalysis,
+  todayKey: string | null,
+  weight: number,
+): RepsEstimate | null {
+  if (!(weight > 0)) return null;
+
+  const matching = todayKey === null
+    ? undefined
+    : analysis.groups.find(g => g.key === todayKey);
+
+  // Without a matching context, fall back to whichever group has the most data
+  const source = matching ?? analysis.groups[0];
+  const reference = contextReference(source);
+  if (reference === null || !source) return null;
+
+  const reps = Math.round((reference / weight - 1) * 30);
+  if (reps < 1 || reps > 50) return null;
+
+  return {
+    reps,
+    sessions: source.points.length,
+    contextMatched: !!matching,
+    preceding: source.preceding,
+  };
+}
+
 // ── Set formatting ─────────────────────────────────────────────
 
 const SIDE_PREFIX: Record<string, string> = { left: 'L ', right: 'R ' };

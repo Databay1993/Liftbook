@@ -208,6 +208,9 @@ export default {
   legendContextTitle: 'Comparar — misma fatiga previa',
   legendContextBody: 'Remo después de dominadas no es lo mismo que remo al empezar: la espalda ya está cansada. Esta vista agrupa tus sesiones según qué ejercicios del mismo grupo muscular vinieron antes, y solo compara dentro de un grupo. Otros grupos musculares no cuentan — tras la prensa de piernas tu espalda está tan fresca como al principio. El orden entre los ejercicios previos se ignora, si no quedarían muy pocas sesiones por grupo. El ejercicio necesita un grupo muscular asignado.',
 
+  legendHintTitle: 'La sugerencia de repeticiones',
+  legendHintBody: 'Al escribir un peso durante el entrenamiento aparece debajo, en tenue, cuántas repeticiones cabe esperar. Se basa en tus últimas tres sesiones de ese ejercicio — en concreto las tres realizadas con la misma fatiga previa que hoy. Así, remo después de dominadas se compara con remo después de dominadas, no con remo al empezar. Se toma el valor central de los tres, para que un dato atípico no fije la expectativa.\n\nUn * tras el número indica que aún no hay sesiones con el orden de hoy; la estimación viene entonces de tu contexto más frecuente y es más imprecisa.',
+
   legendRecentTitle: 'Últimas sesiones',
   legendRecentBody: 'Tus dos sesiones más recientes con todos los ejercicios y series — pensado para mirar atrás al decidir qué toca hoy.',
 

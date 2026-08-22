@@ -209,6 +209,9 @@ export default {
   legendContextTitle: 'Vergleich — gleiche Vorermüdung',
   legendContextBody: 'Rudern nach Klimmzügen ist nicht dasselbe wie Rudern zu Beginn: Der Rücken ist schon müde. Diese Ansicht gruppiert deine Trainings danach, welche Übungen derselben Muskelgruppe vorher dran waren, und vergleicht nur innerhalb einer Gruppe. Übungen anderer Muskelgruppen zählen nicht — nach Beinpresse ist dein Rücken so frisch wie am Anfang. Die Reihenfolge untereinander wird ignoriert, sonst blieben zu wenige Trainings je Gruppe übrig. Voraussetzung ist, dass die Übung eine Muskelgruppe zugeordnet hat.',
 
+  legendHintTitle: 'Der Wiederholungs-Hinweis',
+  legendHintBody: 'Tippst du im Workout ein Gewicht ein, steht darunter blass, wie viele Wiederholungen dabei zu erwarten sind. Grundlage sind deine letzten drei Trainings dieser Übung — genauer: die drei, die unter derselben Vorermüdung stattfanden wie heute. Rudern nach Klimmzügen wird also mit Rudern nach Klimmzügen verglichen, nicht mit Rudern zu Beginn. Genommen wird der mittlere der drei Werte, damit ein einzelner Ausreißer die Erwartung nicht setzt.\n\nSteht ein * hinter der Zahl, gab es für die heutige Reihenfolge noch keine Trainings — dann stammt die Schätzung aus deinem häufigsten Kontext und ist entsprechend ungenauer.',
+
   legendRecentTitle: 'Letzte Trainings',
   legendRecentBody: 'Die zwei jüngsten Einheiten mit allen Übungen und Sätzen — gedacht als Blick zurück für die Frage, was heute dran ist.',
 

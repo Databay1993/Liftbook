@@ -15,7 +15,13 @@ import {
   getAllExercises, getLastSessionForExercise,
   saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
   updateExerciseRestTime, updateExerciseHasSides, getHistory,
+  getExerciseSets, getWorkoutCompositions,
 } from '../storage/database';
+import {
+  buildE1RMSeries, analyzeContexts, contextKey, estimateReps,
+  ContextAnalysis, RepsEstimate,
+} from '../lib/analytics';
+import { loadSetRule } from '../lib/setRule';
 import { useTimer } from '../hooks/useTimer';
 import { exerciseLabel } from '../lib/exerciseName';
 import TimerBubble from '../components/TimerBubble';
@@ -73,7 +79,8 @@ export default function WorkoutScreen({ navigation }: any) {
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
   const [newExName, setNewExName] = useState('');
-  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean }[]>([]);
+  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null }[]>([]);
+  const [contexts, setContexts] = useState<Record<string, ContextAnalysis>>({});
   const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string; side?: string }[] } | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
@@ -149,6 +156,16 @@ export default function WorkoutScreen({ navigation }: any) {
     const hasSides = info?.hasSides ?? false;
     const last = await getLastSessionForExercise(name);
     setLastSessions(prev => ({ ...prev, [name]: last }));
+
+    // History grouped by fatigue context, so the rep hint can compare today
+    // against sessions trained in the same situation rather than any session
+    const [sets, compositions, rule] = await Promise.all([
+      getExerciseSets(name), getWorkoutCompositions(name), loadSetRule(),
+    ]);
+    setContexts(prev => ({
+      ...prev,
+      [name]: analyzeContexts(buildE1RMSeries(sets, rule), compositions, name, info?.muscleGroup ?? null),
+    }));
     const prefilled: WSet[] = last
       ? last.sets.map(s => ({ reps: s.reps, weight: s.weight, isDone: false, side: s.side as 'left' | 'right' | undefined }))
       : [];
@@ -314,11 +331,33 @@ export default function WorkoutScreen({ navigation }: any) {
     await loadExercises();
   }
 
-  function calcRepsHint(lastReps: string, lastWeight: string, newWeight: string): number | null {
-    const r = parseFloat(lastReps), w = parseFloat(lastWeight), nw = parseFloat(newWeight);
-    if (!r || !w || !nw || nw === w) return null;
-    const est = Math.round((w * (1 + r / 30) / nw - 1) * 30);
-    return est >= 1 && est <= 50 ? est : null;
+  /**
+   * Today's fatigue context for an exercise, built from the workout as it
+   * stands right now — adding another back exercise above it changes what
+   * this exercise is comparable to, so it is derived at render time.
+   */
+  function todayContextKey(exName: string): string | null {
+    const groupOf = new Map<string, string | null>(
+      allExercises.map(e => [e.name, e.muscleGroup] as [string, string | null]),
+    );
+    const composition = {
+      workoutId: activeWorkout?.workoutId ?? 0,
+      date: activeWorkout?.date ?? '',
+      orderInferred: false,
+      exercises: exercises.map(e => ({ name: e.name, muscleGroup: groupOf.get(e.name) ?? null })),
+    };
+    return contextKey(composition, exName, groupOf.get(exName) ?? null);
+  }
+
+  /**
+   * What the entered weight should be good for, based on sessions trained
+   * under the same pre-fatigue as today rather than on whatever came last.
+   */
+  function repsHintFor(exName: string, weight: string): RepsEstimate | null {
+    const analysis = contexts[exName];
+    const w = parseFloat(weight);
+    if (!analysis || !w) return null;
+    return estimateReps(analysis, todayContextKey(exName), w);
   }
 
   async function handleSave() {
@@ -538,8 +577,8 @@ export default function WorkoutScreen({ navigation }: any) {
               {!disabled && (
                 <View style={styles.setsBody}>
                   {ex.sets.map((s, idx) => {
-                    const hint = ex.trackingType === 'weight_reps' && last?.sets[idx]
-                      ? calcRepsHint(last.sets[idx].reps, last.sets[idx].weight, s.weight)
+                    const hint = ex.trackingType === 'weight_reps'
+                      ? repsHintFor(ex.name, s.weight)
                       : null;
                     const elapsed = s.timerRunning && s.timerStartedAt
                       ? Math.floor((Date.now() - s.timerStartedAt) / 1000)
@@ -583,7 +622,12 @@ export default function WorkoutScreen({ navigation }: any) {
                                 onChangeText={v => updateSet(ex.name, idx, 'weight', v)}
                                 editable={!s.isDone}
                               />
-                              {hint !== null && <Text style={styles.repsHint}>~{hint} {t('reps')}</Text>}
+                              {hint && (
+                                <Text style={[styles.repsHint, !hint.contextMatched && styles.repsHintLoose]}>
+                                  ~{hint.reps} {t('reps')}
+                                  {!hint.contextMatched ? ' *' : ''}
+                                </Text>
+                              )}
                             </View>
                           </>
                         )}
@@ -955,6 +999,7 @@ function makeStyles(c: Colors) {
       marginTop: 2,
       textAlign: 'center',
     },
+    repsHintLoose: { opacity: 0.6 },
     checkBtn: { width: 38, height: 38, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
     checkBtnDone: { backgroundColor: c.accent, borderColor: c.accent },
     checkBtnText: { color: c.muted, fontSize: 16, fontWeight: '700' },

@@ -209,6 +209,9 @@ export default {
   legendContextTitle: 'Compare — same pre-fatigue',
   legendContextBody: 'Rowing after pull-ups is not the same as rowing done first: the back is already tired. This view groups your sessions by which exercises for the same muscle group came before, and only compares within a group. Other muscle groups do not count — after leg press your back is as fresh as at the start. Order among the preceding exercises is ignored, otherwise too few sessions would be left per group. The exercise needs an assigned muscle group for this to work.',
 
+  legendHintTitle: 'The rep hint',
+  legendHintBody: 'Typing a weight during a workout shows faintly below it how many reps to expect. It is based on your last three sessions of that exercise — specifically the three trained under the same pre-fatigue as today. Rowing after pull-ups is therefore compared against rowing after pull-ups, not against rowing done first. The middle of the three values is used, so one outlier does not set the expectation.\n\nA * after the number means no session matched today\'s order yet; the estimate then comes from your most common context and is correspondingly rougher.',
+
   legendRecentTitle: 'Recent sessions',
   legendRecentBody: 'Your two most recent sessions with every exercise and set — meant as a look back when deciding what to train today.',
 
