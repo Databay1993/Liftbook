@@ -48,7 +48,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Legcurl':           'hamstrings',
   'Reverse Butterfly': 'shoulders',
   'Rudern':            'back,biceps',
-  'Rücken Strecker':   'back,glutes',
+  'Rücken Strecker':   'back',
   'SZ Bizeps':         'biceps',
   'Seated leg curl':   'hamstrings',
   'Seitheben':         'shoulders',
@@ -191,6 +191,18 @@ export async function initDb() {
     for (const s of strays) await deleteExerciseCompletely(s.name);
 
     await mergeExercises('Klimzug', 'Pull-Up');
+  });
+
+  // Only main movers count as fatiguing, not muscles that merely assist.
+  // The seeding above never overwrites an existing value, so corrections to
+  // the defaults need their own pass.
+  await runOnce(db, 'groups-main-movers-1', async () => {
+    const corrections: Record<string, string> = {
+      'Rücken Strecker': 'back',   // glutes only assist here
+    };
+    for (const [name, group] of Object.entries(corrections)) {
+      await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);
+    }
   });
 
   // Migration: add workout_id tracking to workouts (already exists)
