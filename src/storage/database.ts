@@ -253,21 +253,30 @@ export async function initDb() {
   });
 
   // Migration: add workout_id tracking to workouts (already exists)
-  // Seed default exercises if empty
+  // Every exercise in DEFAULT_MUSCLE_GROUPS ships with the app, so a fresh
+  // install starts with the full set already grouped rather than an empty list.
+  //
+  // Only on a genuinely empty database: re-inserting on every start would
+  // resurrect anything the user deliberately deleted.
   const count = await db.getFirstAsync<{ c: number }>(
     'SELECT COUNT(*) as c FROM exercises'
   );
   if (count && count.c === 0) {
-    const defaults = [
-      'Bench Press', 'Squat', 'Deadlift', 'Overhead Press',
-      'Pull-Up', 'Barbell Row', 'Bicep Curl', 'Tricep Pushdown',
-      'Leg Press', 'Lat Pulldown',
-    ];
-    await db.runAsync(
-      `INSERT OR IGNORE INTO exercises (name, is_custom) VALUES ${defaults.map(() => '(?, 0)').join(',')}`,
-      ...defaults
-    );
+    for (const [name, group] of Object.entries(DEFAULT_MUSCLE_GROUPS)) {
+      await db.runAsync(
+        'INSERT OR IGNORE INTO exercises (name, is_custom, muscle_group) VALUES (?, 0, ?)',
+        name, group,
+      );
+    }
   }
+
+  // Entries that were typed in by hand before they shipped as defaults are
+  // still flagged custom; line them up with what they now are
+  await runOnce(db, 'standard-exercises-1', async () => {
+    for (const name of Object.keys(DEFAULT_MUSCLE_GROUPS)) {
+      await db.runAsync('UPDATE exercises SET is_custom = 0 WHERE name = ?', name);
+    }
+  });
 }
 
 // ── Exercises ──────────────────────────────────────────────────
