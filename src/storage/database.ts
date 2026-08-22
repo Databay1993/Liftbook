@@ -43,7 +43,9 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Beinheben am Barren':      'core',
   'Copenhagen Plank':  'core,adductors',
   'Hammercurl':       'biceps',
-  'Klimmzug crunch':   'core',
+  'Knieheben hängend': 'core',
+  'Beinheben hängend': 'core',
+  'Füße zur Stange':   'core',
   'Beinstrecker':     'quads',
   'Beinbeuger liegend':           'hamstrings',
   'Reverse Butterfly': 'shoulders',
@@ -52,7 +54,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'SZ-Curl':         'biceps',
   'Beinbeuger sitzend':   'hamstrings',
   'Seitheben':         'shoulders',
-  'Air Squat':         'quads,glutes',
+  'Kniebeuge ohne Gewicht': 'quads,glutes',
   'Wadenheben exzentrisch':  'calves',
 };
 
@@ -187,6 +189,37 @@ export async function initDb() {
         // Target name already taken — leave the entry alone rather than
         // risking two exercises collapsing into one by accident
       }
+    }
+  });
+
+  // Calisthenics progressions are separate exercises rather than one entry
+  // with a difficulty setting: the range of motion genuinely differs, and
+  // twelve knee raises are not a weaker version of three toes-to-bar.
+  await runOnce(db, 'calisthenics-progression-1', async () => {
+    try {
+      // Legs are pulled all the way to the bar, so the history belongs to the
+      // hardest step rather than to the entry point of the progression
+      await renameExercise('Klimmzug crunch', 'Füße zur Stange');
+    } catch { /* already renamed or the name is taken */ }
+
+    try {
+      await renameExercise('Air Squat', 'Kniebeuge ohne Gewicht');
+    } catch { /* already renamed or the name is taken */ }
+
+    // The two easier steps, so the progression can be logged from the start
+    for (const name of ['Knieheben hängend', 'Beinheben hängend']) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO exercises (name, is_custom, muscle_group, tracking_type)
+         VALUES (?, 0, 'core', 'bodyweight')`,
+        name,
+      );
+    }
+
+    // All three are done against body weight, not against a loaded bar
+    for (const name of ['Knieheben hängend', 'Beinheben hängend', 'Füße zur Stange']) {
+      await db.runAsync(
+        "UPDATE exercises SET tracking_type = 'bodyweight' WHERE name = ?", name,
+      );
     }
   });
 
