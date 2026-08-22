@@ -1,0 +1,43 @@
+name: EAS Update
+
+# Publishes an EAS Update without needing the PC:
+#   - automatically on every push to the feature branch
+#   - or manually via "Run workflow" (works from the GitHub app on the phone)
+#
+# Requires a repository secret named EXPO_TOKEN
+# (expo.dev → Account settings → Access tokens → create, then add it under
+#  GitHub → Settings → Secrets and variables → Actions).
+
+on:
+  push:
+    branches:
+      - claude/sports-app-repo-evxyv7
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Message shown in the EAS dashboard'
+        required: false
+        default: 'Manual update'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Publish update
+        env:
+          MSG: ${{ github.event.inputs.message || github.event.head_commit.message }}
+        run: eas update --branch preview --message "$MSG"

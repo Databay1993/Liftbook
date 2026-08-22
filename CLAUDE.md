@@ -20,6 +20,10 @@ git pull origin <branch> && eas update --branch preview --message "<summary>"
 Then they force-close the app on the phone and reopen it twice — the first
 launch downloads the update, the second shows it.
 
+Alternatively `.github/workflows/eas-update.yml` publishes the same update
+automatically on every push to the feature branch (and can be triggered by
+hand from the GitHub app). It needs the `EXPO_TOKEN` repository secret.
+
 Constraints this implies:
 
 - Keep `app.json` `version` at `1.0.0` — the installed runtime version is
