@@ -115,6 +115,32 @@ export default {
   overlayEwma: '━━ Blue curve = smoothed course',
   overlayDimmed: 'faded points do not count',
 
+  // Context comparison
+  chartContext: 'Compare',
+  chartContextHint: 'Only compare sessions with the same pre-fatigue',
+  contextIntro: 'Grouped by what worked the same muscle group before this exercise. Only sessions in the same group compare fairly.',
+  contextFresh: 'Fresh (nothing before)',
+  contextAfter: 'After',
+  contextVsBest: 'vs best group',
+  contextTrend: 'In the current context ({{context}}): {{value}} kg/month',
+  contextTooFew: 'Only {{count}} comparable sessions in "{{context}}" — too few for a trend. Train this order more often and it becomes meaningful.',
+  contextNoGroup: 'This exercise has no muscle group yet. Assign one under Settings → Manage Exercises to enable the comparison.',
+  contextOrderInferred: 'For older sessions the order was inferred from save order — usually right, but not guaranteed.',
+
+  // Muscle groups
+  muscleGroupTitle: 'Choose muscle group',
+  muscleGroupHint: 'The muscle group decides which exercises fatigue each other — the basis for the comparison view in stats.',
+  muscleGroupNone: 'none',
+  muscleGroupClear: 'Clear',
+  muscle_chest: 'Chest',
+  muscle_back: 'Back',
+  muscle_legs: 'Legs',
+  muscle_shoulders: 'Shoulders',
+  muscle_arms: 'Arms',
+  muscle_core: 'Core',
+  muscle_cardio: 'Cardio',
+  muscle_other: 'Other',
+
   // Legend
   legendButton: 'Legend',
   legendTitle: 'How these stats work',
@@ -146,6 +172,9 @@ export default {
 
   legendByWeightTitle: 'Reps per weight',
   legendByWeightBody: 'The other chart view: one line per weight, showing how many reps you manage with it over time. Useful when you stay on the same weight for a while and the progress lives in the rep count.',
+
+  legendContextTitle: 'Compare — same pre-fatigue',
+  legendContextBody: 'Rowing after pull-ups is not the same as rowing done first: the back is already tired. This view groups your sessions by which exercises for the same muscle group came before, and only compares within a group. Other muscle groups do not count — after leg press your back is as fresh as at the start. Order among the preceding exercises is ignored, otherwise too few sessions would be left per group. The exercise needs an assigned muscle group for this to work.',
 
   legendRecentTitle: 'Recent sessions',
   legendRecentBody: 'Your two most recent sessions with every exercise and set — meant as a look back when deciding what to train today.',

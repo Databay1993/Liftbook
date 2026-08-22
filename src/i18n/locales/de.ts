@@ -115,6 +115,32 @@ export default {
   overlayEwma: '━━ Blaue Kurve = geglätteter Verlauf',
   overlayDimmed: 'blasse Punkte zählen nicht mit',
 
+  // Context comparison
+  chartContext: 'Vergleich',
+  chartContextHint: 'Nur Trainings mit gleicher Vorermüdung vergleichen',
+  contextIntro: 'Gruppiert nach dem, was vor dieser Übung dieselbe Muskelgruppe belastet hat. Nur Trainings derselben Gruppe sind fair vergleichbar.',
+  contextFresh: 'Frisch (nichts davor)',
+  contextAfter: 'Nach',
+  contextVsBest: 'zur besten Gruppe',
+  contextTrend: 'Im aktuellen Kontext ({{context}}): {{value}} kg/Monat',
+  contextTooFew: 'Nur {{count}} vergleichbare Trainings in „{{context}}" — für einen Trend zu wenig. Fahre diese Reihenfolge öfter, dann wird es aussagekräftig.',
+  contextNoGroup: 'Dieser Übung fehlt eine Muskelgruppe. Ordne sie in den Einstellungen unter „Übungen verwalten" zu, dann kann verglichen werden.',
+  contextOrderInferred: 'Bei älteren Trainings wurde die Reihenfolge aus der Speicher-Reihenfolge abgeleitet — meist richtig, aber nicht garantiert.',
+
+  // Muscle groups
+  muscleGroupTitle: 'Muskelgruppe wählen',
+  muscleGroupHint: 'Die Muskelgruppe steuert, welche Übungen sich gegenseitig ermüden — Grundlage für den Vergleich in der Statistik.',
+  muscleGroupNone: 'keine',
+  muscleGroupClear: 'Entfernen',
+  muscle_chest: 'Brust',
+  muscle_back: 'Rücken',
+  muscle_legs: 'Beine',
+  muscle_shoulders: 'Schultern',
+  muscle_arms: 'Arme',
+  muscle_core: 'Rumpf',
+  muscle_cardio: 'Ausdauer',
+  muscle_other: 'Sonstiges',
+
   // Legend
   legendButton: 'Legende',
   legendTitle: 'Wie die Statistik rechnet',
@@ -146,6 +172,9 @@ export default {
 
   legendByWeightTitle: 'Wdh pro Gewicht',
   legendByWeightBody: 'Die andere Chart-Ansicht: eine Linie je Gewicht, die zeigt, wie viele Wiederholungen du damit über die Zeit schaffst. Nützlich, wenn du lange beim selben Gewicht bleibst und die Steigerung in den Wiederholungen steckt.',
+
+  legendContextTitle: 'Vergleich — gleiche Vorermüdung',
+  legendContextBody: 'Rudern nach Klimmzügen ist nicht dasselbe wie Rudern zu Beginn: Der Rücken ist schon müde. Diese Ansicht gruppiert deine Trainings danach, welche Übungen derselben Muskelgruppe vorher dran waren, und vergleicht nur innerhalb einer Gruppe. Übungen anderer Muskelgruppen zählen nicht — nach Beinpresse ist dein Rücken so frisch wie am Anfang. Die Reihenfolge untereinander wird ignoriert, sonst blieben zu wenige Trainings je Gruppe übrig. Voraussetzung ist, dass die Übung eine Muskelgruppe zugeordnet hat.',
 
   legendRecentTitle: 'Letzte Trainings',
   legendRecentBody: 'Die zwei jüngsten Einheiten mit allen Übungen und Sätzen — gedacht als Blick zurück für die Frage, was heute dran ist.',

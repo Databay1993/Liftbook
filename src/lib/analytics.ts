@@ -5,7 +5,7 @@
  * function over plain data, so it can be reasoned about (and tested) on its own.
  */
 
-import type { ExerciseSetRow, SessionSet } from '../storage/database';
+import type { ExerciseSetRow, SessionSet, WorkoutComposition } from '../storage/database';
 
 // ── e1RM (estimated one-rep max) ───────────────────────────────
 
@@ -284,6 +284,93 @@ export function summarizeTrend(points: E1RMPoint[]): TrendSummary {
     ewmaNow: smoothed.length > 0 ? smoothed[smoothed.length - 1].value : null,
     reliable,
   };
+}
+
+// ── Fatigue context ────────────────────────────────────────────
+
+/**
+ * Rowing done after pull-ups is not the same exercise as rowing done fresh —
+ * the back is already tired. What matters is not the position in the workout
+ * but which exercises for the *same muscle group* came before: three leg
+ * exercises leave the back just as fresh as starting with rowing.
+ *
+ * Sessions are therefore grouped by that set of preceding same-group
+ * exercises, and only sessions sharing a group get compared. Order among them
+ * is ignored — pull-up→lat-pulldown→row counts the same as the reverse, which
+ * keeps groups large enough to say anything.
+ */
+export function contextKey(
+  composition: WorkoutComposition,
+  exerciseName: string,
+  muscleGroup: string | null,
+): string | null {
+  const index = composition.exercises.findIndex(e => e.name === exerciseName);
+  if (index < 0) return null;
+
+  const preceding = composition.exercises
+    .slice(0, index)
+    .filter(e => muscleGroup !== null && e.muscleGroup === muscleGroup)
+    .map(e => e.name)
+    .sort();
+
+  return preceding.join(' + ');   // '' means nothing tired this muscle first
+}
+
+export type ContextGroup = {
+  key: string;
+  /** Exercises that preceded this one, for display. */
+  preceding: string[];
+  points: E1RMPoint[];
+};
+
+export type ContextAnalysis = {
+  groups: ContextGroup[];
+  /** The group the most recent session belongs to — the one to judge by. */
+  currentKey: string | null;
+  /** True when at least one workout's exercise order had to be inferred. */
+  orderInferred: boolean;
+};
+
+/**
+ * Splits an exercise's sessions into comparable groups by fatigue context,
+ * largest group first, with the current context flagged.
+ */
+export function analyzeContexts(
+  points: E1RMPoint[],
+  compositions: WorkoutComposition[],
+  exerciseName: string,
+  muscleGroup: string | null,
+): ContextAnalysis {
+  const byWorkout = new Map(compositions.map(c => [c.workoutId, c]));
+  const buckets = new Map<string, ContextGroup>();
+  let currentKey: string | null = null;
+  let orderInferred = false;
+
+  for (const point of points) {
+    const composition = byWorkout.get(point.workoutId);
+    if (!composition) continue;
+    if (composition.orderInferred) orderInferred = true;
+
+    const key = contextKey(composition, exerciseName, muscleGroup);
+    if (key === null) continue;
+
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { key, preceding: key === '' ? [] : key.split(' + '), points: [] };
+      buckets.set(key, bucket);
+    }
+    bucket.points.push(point);
+    currentKey = key;   // points are ordered oldest first, so the last wins
+  }
+
+  const groups = [...buckets.values()].sort((a, b) => b.points.length - a.points.length);
+  return { groups, currentKey, orderInferred };
+}
+
+/** Average e1RM of a group, for comparing contexts against each other. */
+export function groupAverage(group: ContextGroup): number {
+  if (group.points.length === 0) return 0;
+  return group.points.reduce((s, p) => s + p.e1rm, 0) / group.points.length;
 }
 
 // ── Set formatting ─────────────────────────────────────────────

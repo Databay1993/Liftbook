@@ -10,9 +10,13 @@ import {
   getHistory, HistoryRow,
   getRecentWorkouts, SessionDetail,
   getExerciseProgressByWeight, ProgressByWeightRow,
-  getExerciseSets,
+  getExerciseSets, getAllExercises, getWorkoutCompositions,
 } from '../storage/database';
-import { buildE1RMSeries, summarizeTrend, E1RMPoint, TrendSummary } from '../lib/analytics';
+import {
+  buildE1RMSeries, summarizeTrend, analyzeContexts,
+  E1RMPoint, TrendSummary, ContextAnalysis,
+} from '../lib/analytics';
+import ContextComparison from '../components/ContextComparison';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart, { ChartOverlay } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
@@ -20,7 +24,7 @@ import StatsLegend from '../components/StatsLegend';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
-type ChartMode = 'e1rm' | 'byWeight';
+type ChartMode = 'e1rm' | 'byWeight' | 'context';
 type TrendMetric = 'slope' | 'blocks' | 'ewma';
 const TREND_ORDER: TrendMetric[] = ['slope', 'blocks', 'ewma'];
 
@@ -29,6 +33,8 @@ type ExProgress = {
   points: ProgressByWeightRow[];
   e1rm: E1RMPoint[];
   trend: TrendSummary;
+  contexts: ContextAnalysis;
+  muscleGroup: string | null;
   expanded: boolean;
   mode: ChartMode;
   metric: TrendMetric;
@@ -105,19 +111,26 @@ export default function StatsScreen() {
     setWeekFreq(sorted);
 
     // Progress data for each exercise (load all, expand on tap)
+    const allExercises = await getAllExercises();
+    const groupOf = new Map(allExercises.map(e => [e.name, e.muscleGroup]));
+
     const topExercises = stats.slice(0, 10).map(e => e.name);
     const progressData = await Promise.all(
       topExercises.map(async name => {
-        const [points, sets] = await Promise.all([
+        const [points, sets, compositions] = await Promise.all([
           getExerciseProgressByWeight(name),
           getExerciseSets(name),
+          getWorkoutCompositions(name),
         ]);
         const e1rm = buildE1RMSeries(sets);
+        const muscleGroup = groupOf.get(name) ?? null;
         return {
           name,
           points,
           e1rm,
           trend: summarizeTrend(e1rm),
+          contexts: analyzeContexts(e1rm, compositions, name, muscleGroup),
+          muscleGroup,
           expanded: false,
           mode: 'e1rm' as ChartMode,
           metric: 'slope' as TrendMetric,
@@ -257,6 +270,7 @@ export default function StatsScreen() {
                     {([
                       { key: 'e1rm',     label: t('chartE1RM')     },
                       { key: 'byWeight', label: t('chartByWeight') },
+                      { key: 'context',  label: t('chartContext')  },
                     ] as { key: ChartMode; label: string }[]).map(m => (
                       <TouchableOpacity
                         key={m.key}
@@ -301,10 +315,15 @@ export default function StatsScreen() {
                           );
                         })()}
                       </>
-                    ) : (
+                    ) : ex.mode === 'byWeight' ? (
                       <>
                         <Text style={styles.chartLabel}>{t('chartByWeightHint')}</Text>
                         <ProgressChartByWeight data={ex.points} />
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.chartLabel}>{t('chartContextHint')}</Text>
+                        <ContextComparison analysis={ex.contexts} muscleGroup={ex.muscleGroup} />
                       </>
                     )}
                   </View>

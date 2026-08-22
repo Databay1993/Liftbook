@@ -46,6 +46,7 @@ export default function StatsLegend({ visible, onClose }: Props) {
     { key: 'legendBlockCompare' },
     { key: 'legendEwma' },
     { key: 'legendByWeight' },
+    { key: 'legendContext' },
     { key: 'legendRecent' },
     { key: 'legendPR' },
   ];

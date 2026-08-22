@@ -2,6 +2,25 @@ import * as SQLite from 'expo-sqlite';
 
 let db: SQLite.SQLiteDatabase;
 
+/** Groups an exercise can belong to; drives which exercises fatigue each other. */
+export const MUSCLE_GROUPS = [
+  'chest', 'back', 'legs', 'shoulders', 'arms', 'core', 'cardio', 'other',
+] as const;
+export type MuscleGroup = typeof MUSCLE_GROUPS[number];
+
+const DEFAULT_MUSCLE_GROUPS: Record<string, MuscleGroup> = {
+  'Bench Press': 'chest',
+  'Squat': 'legs',
+  'Deadlift': 'back',
+  'Overhead Press': 'shoulders',
+  'Pull-Up': 'back',
+  'Barbell Row': 'back',
+  'Bicep Curl': 'arms',
+  'Tricep Pushdown': 'arms',
+  'Leg Press': 'legs',
+  'Lat Pulldown': 'back',
+};
+
 export async function getDb() {
   if (!db) {
     db = await SQLite.openDatabaseAsync('liftbook.db');
@@ -77,6 +96,25 @@ export async function initDb() {
     await db.execAsync(`ALTER TABLE sets ADD COLUMN side TEXT DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
+  // Migration: muscle group per exercise, for context-aware comparison
+  try {
+    await db.execAsync(`ALTER TABLE exercises ADD COLUMN muscle_group TEXT DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
+  // Migration: position of an exercise within its workout.
+  // Older rows stay NULL and fall back to insertion order (MIN(sets.id)).
+  try {
+    await db.execAsync(`ALTER TABLE sets ADD COLUMN exercise_order INTEGER DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
+  // Give the seeded exercises a sensible group; never overwrite a user's choice
+  for (const [name, group] of Object.entries(DEFAULT_MUSCLE_GROUPS)) {
+    await db.runAsync(
+      'UPDATE exercises SET muscle_group = ? WHERE name = ? AND muscle_group IS NULL',
+      group, name,
+    );
+  }
+
   // Migration: add workout_id tracking to workouts (already exists)
   // Seed default exercises if empty
   const count = await db.getFirstAsync<{ c: number }>(
@@ -97,9 +135,9 @@ export async function initDb() {
 
 // ── Exercises ──────────────────────────────────────────────────
 
-export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean }[]> {
+export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null }[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number; muscle_group: string | null }>(
     'SELECT * FROM exercises ORDER BY is_custom ASC, name ASC'
   );
   return rows.map(r => ({
@@ -109,7 +147,13 @@ export async function getAllExercises(): Promise<{ id: number; name: string; isC
     trackingType: r.tracking_type ?? 'weight_reps',
     restTime: r.rest_time ?? null,
     hasSides: r.has_sides === 1,
+    muscleGroup: r.muscle_group ?? null,
   }));
+}
+
+export async function updateExerciseMuscleGroup(name: string, group: string | null): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);
 }
 
 export async function updateExerciseHasSides(name: string, hasSides: boolean): Promise<void> {
@@ -159,6 +203,8 @@ export async function saveExerciseSets(
   workoutId: number,
   exerciseName: string,
   sets: { reps: string; weight: string; side?: string }[],
+  /** Position of this exercise within the workout, 0-based. */
+  exerciseOrder?: number,
 ): Promise<void> {
   const db = await getDb();
   await db.runAsync(
@@ -168,8 +214,8 @@ export async function saveExerciseSets(
   for (let i = 0; i < sets.length; i++) {
     const s = sets[i];
     await db.runAsync(
-      'INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight, side) VALUES (?, ?, ?, ?, ?, ?)',
-      workoutId, exerciseName, i + 1, s.reps, s.weight, s.side ?? null,
+      'INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight, side, exercise_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      workoutId, exerciseName, i + 1, s.reps, s.weight, s.side ?? null, exerciseOrder ?? null,
     );
   }
 }
@@ -346,6 +392,62 @@ export async function getExerciseSets(exerciseName: string): Promise<ExerciseSet
     WHERE s.exercise_name = ?
     ORDER BY w.date ASC, s.set_number ASC
   `, exerciseName);
+}
+
+// ── Workout composition (which exercises, in which order) ─────
+
+export type CompositionExercise = { name: string; muscleGroup: string | null };
+export type WorkoutComposition = {
+  workoutId: number;
+  date: string;
+  exercises: CompositionExercise[];
+  /** True when the order came from insertion order rather than a stored one. */
+  orderInferred: boolean;
+};
+
+/**
+ * Every workout containing `exerciseName`, with its exercises in the order
+ * they were trained.
+ *
+ * Workouts logged before exercise_order existed fall back to insertion order,
+ * which is right unless an exercise was edited after a later one was saved.
+ */
+export async function getWorkoutCompositions(exerciseName: string): Promise<WorkoutComposition[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    workoutId: number;
+    date: string;
+    name: string;
+    muscleGroup: string | null;
+    ord: number | null;
+    firstId: number;
+  }>(`
+    SELECT
+      w.id   as workoutId,
+      w.date as date,
+      s.exercise_name as name,
+      e.muscle_group  as muscleGroup,
+      MIN(s.exercise_order) as ord,
+      MIN(s.id)             as firstId
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    LEFT JOIN exercises e ON e.name = s.exercise_name
+    WHERE w.id IN (SELECT workout_id FROM sets WHERE exercise_name = ?)
+    GROUP BY w.id, s.exercise_name
+    ORDER BY w.date ASC, COALESCE(MIN(s.exercise_order), 999999) ASC, MIN(s.id) ASC
+  `, exerciseName);
+
+  const byWorkout = new Map<number, WorkoutComposition>();
+  for (const r of rows) {
+    let entry = byWorkout.get(r.workoutId);
+    if (!entry) {
+      entry = { workoutId: r.workoutId, date: r.date, exercises: [], orderInferred: false };
+      byWorkout.set(r.workoutId, entry);
+    }
+    if (r.ord === null) entry.orderInferred = true;
+    entry.exercises.push({ name: r.name, muscleGroup: r.muscleGroup });
+  }
+  return [...byWorkout.values()];
 }
 
 // ── Recent sessions (last N workouts with full set detail) ────

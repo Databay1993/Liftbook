@@ -272,9 +272,12 @@ export default function WorkoutScreen({ navigation }: any) {
     const validSets = ex.sets.filter(s => s.reps || s.weight);
     if (validSets.length === 0) { showToast('No sets to save'); return; }
 
+    // Position in the workout is what makes later comparisons fair —
+    // rowing after pull-ups is not the same as rowing done first.
+    const order = exercises.findIndex(e => e.name === exName);
     await saveExerciseSets(activeWorkout.workoutId, exName, validSets.map(s => ({
       reps: s.reps, weight: s.weight, side: s.side,
-    })));
+    })), order);
     setExercises(prev => prev.map(e => e.name === exName ? { ...e, isCompleted: true } : e));
     showToast(t('exerciseSaved'));
   }
@@ -326,12 +329,12 @@ export default function WorkoutScreen({ navigation }: any) {
       .filter(ex => ex.sets.length > 0);
 
     for (const ex of toSave) {
-      const exFull = exercises.find(e => e.name === ex.name);
+      const order = exercises.findIndex(e => e.name === ex.name);
       await saveExerciseSets(activeWorkout.workoutId, ex.name, ex.sets.map(s => ({
         reps: (s as WSet).reps,
         weight: (s as WSet).weight,
         side: (s as WSet).side,
-      })));
+      })), order);
     }
 
     const allSaved = [

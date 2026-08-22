@@ -114,6 +114,32 @@ export default {
   overlayEwma: '━━ Curva azul = evolución suavizada',
   overlayDimmed: 'los puntos atenuados no cuentan',
 
+  // Context comparison
+  chartContext: 'Comparar',
+  chartContextHint: 'Comparar solo sesiones con la misma fatiga previa',
+  contextIntro: 'Agrupado según qué trabajó el mismo grupo muscular antes de este ejercicio. Solo las sesiones del mismo grupo se comparan de forma justa.',
+  contextFresh: 'En fresco (nada antes)',
+  contextAfter: 'Después de',
+  contextVsBest: 'vs. mejor grupo',
+  contextTrend: 'En el contexto actual ({{context}}): {{value}} kg/mes',
+  contextTooFew: 'Solo {{count}} sesiones comparables en «{{context}}» — pocas para una tendencia. Repite este orden más veces y ganará sentido.',
+  contextNoGroup: 'Este ejercicio aún no tiene grupo muscular. Asígnalo en Ajustes → Gestionar ejercicios para poder comparar.',
+  contextOrderInferred: 'En sesiones antiguas el orden se dedujo del orden de guardado — suele ser correcto, pero no está garantizado.',
+
+  // Muscle groups
+  muscleGroupTitle: 'Elegir grupo muscular',
+  muscleGroupHint: 'El grupo muscular decide qué ejercicios se fatigan entre sí — la base de la vista de comparación en estadísticas.',
+  muscleGroupNone: 'ninguno',
+  muscleGroupClear: 'Quitar',
+  muscle_chest: 'Pecho',
+  muscle_back: 'Espalda',
+  muscle_legs: 'Piernas',
+  muscle_shoulders: 'Hombros',
+  muscle_arms: 'Brazos',
+  muscle_core: 'Core',
+  muscle_cardio: 'Cardio',
+  muscle_other: 'Otros',
+
   // Legend
   legendButton: 'Leyenda',
   legendTitle: 'Cómo se calculan las estadísticas',
@@ -145,6 +171,9 @@ export default {
 
   legendByWeightTitle: 'Reps por peso',
   legendByWeightBody: 'La otra vista del gráfico: una línea por peso, que muestra cuántas repeticiones logras con él a lo largo del tiempo. Útil cuando te mantienes en el mismo peso y el progreso está en las repeticiones.',
+
+  legendContextTitle: 'Comparar — misma fatiga previa',
+  legendContextBody: 'Remo después de dominadas no es lo mismo que remo al empezar: la espalda ya está cansada. Esta vista agrupa tus sesiones según qué ejercicios del mismo grupo muscular vinieron antes, y solo compara dentro de un grupo. Otros grupos musculares no cuentan — tras la prensa de piernas tu espalda está tan fresca como al principio. El orden entre los ejercicios previos se ignora, si no quedarían muy pocas sesiones por grupo. El ejercicio necesita un grupo muscular asignado.',
 
   legendRecentTitle: 'Últimas sesiones',
   legendRecentBody: 'Tus dos sesiones más recientes con todos los ejercicios y series — pensado para mirar atrás al decidir qué toca hoy.',

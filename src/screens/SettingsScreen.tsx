@@ -12,7 +12,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { themes, ThemeId, Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { LANGUAGES, changeLanguage } from '../i18n';
-import { exportAllData, getAllExercises, renameExercise } from '../storage/database';
+import {
+  exportAllData, getAllExercises, renameExercise,
+  updateExerciseMuscleGroup, MUSCLE_GROUPS,
+} from '../storage/database';
 import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
 import Toast from '../components/Toast';
 
@@ -35,9 +38,10 @@ export default function SettingsScreen() {
 
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(90);
-  const [exercises, setExercises] = useState<{ name: string; isCustom: boolean }[]>([]);
+  const [exercises, setExercises] = useState<{ name: string; isCustom: boolean; muscleGroup: string | null }[]>([]);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState('');
+  const [groupTarget, setGroupTarget] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => {
@@ -48,7 +52,13 @@ export default function SettingsScreen() {
 
   async function loadExercises() {
     const all = await getAllExercises();
-    setExercises(all.map(e => ({ name: e.name, isCustom: e.isCustom })));
+    setExercises(all.map(e => ({ name: e.name, isCustom: e.isCustom, muscleGroup: e.muscleGroup })));
+  }
+
+  async function assignGroup(name: string, group: string | null) {
+    await updateExerciseMuscleGroup(name, group);
+    await loadExercises();
+    setGroupTarget(null);
   }
 
   function openRename(name: string) {
@@ -209,10 +219,19 @@ export default function SettingsScreen() {
 
         {/* ── Exercises ── */}
         <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('exercisesSection' as any).toUpperCase()}</Text>
+        <Text style={styles.sectionHint}>{t('muscleGroupHint')}</Text>
         <View style={styles.exerciseList}>
           {exercises.map(ex => (
             <View key={ex.name} style={styles.exerciseRow}>
               <Text style={styles.exerciseName} numberOfLines={1}>{ex.name}</Text>
+              <TouchableOpacity
+                style={[styles.groupChip, !ex.muscleGroup && styles.groupChipEmpty]}
+                onPress={() => setGroupTarget(ex.name)}
+              >
+                <Text style={[styles.groupChipTxt, !ex.muscleGroup && styles.groupChipTxtEmpty]}>
+                  {ex.muscleGroup ? t(`muscle_${ex.muscleGroup}` as any) : t('muscleGroupNone')}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity style={styles.renameBtn} onPress={() => openRename(ex.name)}>
                 <Text style={styles.renameBtnTxt}>✏️</Text>
               </TouchableOpacity>
@@ -240,6 +259,43 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {toast && <Toast message={toast} />}
+
+      {/* Muscle group picker */}
+      <Modal visible={!!groupTarget} transparent animationType="fade" onRequestClose={() => setGroupTarget(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('muscleGroupTitle')}</Text>
+            <Text style={styles.modalOldName}>{groupTarget}</Text>
+            <View style={styles.groupGrid}>
+              {MUSCLE_GROUPS.map(g => {
+                const active = exercises.find(e => e.name === groupTarget)?.muscleGroup === g;
+                return (
+                  <TouchableOpacity
+                    key={g}
+                    style={[styles.groupOption, active && styles.groupOptionActive]}
+                    onPress={() => groupTarget && assignGroup(groupTarget, g)}
+                  >
+                    <Text style={[styles.groupOptionTxt, active && styles.groupOptionTxtActive]}>
+                      {t(`muscle_${g}` as any)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setGroupTarget(null)}>
+                <Text style={styles.modalCancelTxt}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => groupTarget && assignGroup(groupTarget, null)}
+              >
+                <Text style={styles.modalCancelTxt}>{t('muscleGroupClear')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Rename modal */}
       <Modal visible={!!renameTarget} transparent animationType="fade" onRequestClose={() => setRenameTarget(null)}>
@@ -417,8 +473,28 @@ function makeStyles(c: Colors) {
       borderBottomColor: c.border,
     },
     exerciseName: { flex: 1, fontSize: 15, color: c.text },
-    renameBtn: { padding: 4 },
+    renameBtn: { padding: 4, marginLeft: 6 },
     renameBtnTxt: { fontSize: 16 },
+    sectionHint: { fontSize: 11, color: c.muted, lineHeight: 16, marginBottom: 8 },
+
+    groupChip: {
+      paddingHorizontal: 10, paddingVertical: 4,
+      borderRadius: 12, borderWidth: 1,
+      borderColor: c.accentBorder, backgroundColor: c.accentBg,
+    },
+    groupChipEmpty: { borderColor: c.border, backgroundColor: c.surface2, borderStyle: 'dashed' },
+    groupChipTxt: { fontSize: 11, color: c.accent, fontWeight: '600' },
+    groupChipTxtEmpty: { color: c.muted, fontWeight: '400' },
+
+    groupGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 4 },
+    groupOption: {
+      paddingHorizontal: 14, paddingVertical: 9,
+      borderRadius: 8, borderWidth: 1,
+      borderColor: c.border, backgroundColor: c.surface2,
+    },
+    groupOptionActive: { borderColor: c.accent, backgroundColor: c.accentBg },
+    groupOptionTxt: { fontSize: 13, color: c.text },
+    groupOptionTxtActive: { color: c.accent, fontWeight: '700' },
 
     // Rename modal
     modalOverlay: {
