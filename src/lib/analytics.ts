@@ -115,6 +115,14 @@ export const MIN_TREND_POINTS = 3;
  */
 export const MIN_PAIR_DAYS = 7;
 
+/**
+ * Below this span a per-month figure would be extrapolation, not measurement:
+ * a week stretched to a month multiplies every wobble by four, so a single
+ * tired session turns into a dramatic-looking rate. Shorter windows report
+ * the change actually observed instead.
+ */
+export const MIN_TREND_SPAN_DAYS = 21;
+
 /** Half-life-ish constant of the smoothed curve, in days. */
 export const EWMA_TAU_DAYS = 21;
 
@@ -255,6 +263,12 @@ export type TrendSummary = {
   /** True once a genuine pause split the series. */
   afterBreak: boolean;
   slopePerMonth: number | null;
+  /** Days covered by the basis — a rate needs enough of them to mean anything. */
+  spanDays: number;
+  /** True when the basis is too short for a per-month rate to be honest. */
+  spanTooShort: boolean;
+  /** Change across the observed window, for when a monthly rate would mislead. */
+  changeOverSpan: number | null;
   /** The same slope as two endpoints, for drawing. */
   slopeLine: TrendLine | null;
   blockDelta: number | null;
@@ -284,13 +298,22 @@ export function summarizeTrend(points: E1RMPoint[]): TrendSummary {
   const smoothed = ewmaSeries(current);
   const groups = reliable ? blockCompareGroups(basis) : null;
 
+  const spanDays = basis.length >= 2
+    ? daysBetween(basis[0].date, basis[basis.length - 1].date)
+    : 0;
+  const spanTooShort = spanDays < MIN_TREND_SPAN_DAYS;
+  const perDay = reliable ? theilSenSlopePerDay(basis) : null;
+
   return {
     basis,
     blockStart,
     basisStart: blockStart + rampSkipped,
     rampSkipped,
     afterBreak: blocks.length > 1,
-    slopePerMonth: reliable ? theilSenPerMonth(basis) : null,
+    spanDays,
+    spanTooShort,
+    changeOverSpan: perDay !== null ? perDay * spanDays : null,
+    slopePerMonth: reliable && !spanTooShort && perDay !== null ? perDay * 30 : null,
     slopeLine: reliable ? theilSenLine(basis) : null,
     blockDelta: groups?.delta ?? null,
     groups,

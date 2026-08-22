@@ -83,10 +83,16 @@ export default function ContextComparison({ analysis, muscleGroup }: Props) {
             </Text>
           ) : (
             <Text style={styles.verdictTxt}>
-              {t('contextTrend', {
-                context: label(current.preceding),
-                value: (currentTrend.slopePerMonth ?? 0).toFixed(1),
-              })}
+              {currentTrend.spanTooShort
+                ? t('contextChange', {
+                    context: label(current.preceding),
+                    value: (currentTrend.changeOverSpan ?? 0).toFixed(1),
+                    days: currentTrend.spanDays,
+                  })
+                : t('contextTrend', {
+                    context: label(current.preceding),
+                    value: (currentTrend.slopePerMonth ?? 0).toFixed(1),
+                  })}
             </Text>
           )}
         </View>

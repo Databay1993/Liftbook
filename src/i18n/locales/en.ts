@@ -103,6 +103,7 @@ export default {
   // Trend metrics (tap to switch)
   trendPerMonthUnit: 'kg/mo',
   trendLabelSlope: 'robust trend',
+  trendLabelSpan: 'over {{days}} days',
   trendLabelBlocks: 'avg3 vs avg3',
   trendLabelSmoothed: 'smoothed',
   trendLabelNone: 'trend',
@@ -123,6 +124,7 @@ export default {
   contextAfter: 'After',
   contextVsBest: 'vs best group',
   contextTrend: 'In the current context ({{context}}): {{value}} kg/month',
+  contextChange: 'In the current context ({{context}}): {{value}} kg over {{days}} days. Too short for a monthly figure — that would multiply every wobble.',
   contextTooFew: 'Only {{count}} comparable sessions in "{{context}}" — too few for a trend. Train this order more often and it becomes meaningful.',
   contextNoGroup: 'This exercise has no muscle group yet. Assign one under Settings → Manage Exercises to enable the comparison.',
   contextOrderInferred: 'For older sessions the order was inferred from save order — usually right, but not guaranteed.',

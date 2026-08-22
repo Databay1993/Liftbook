@@ -203,6 +203,17 @@ export default function StatsScreen() {
 
     switch (metric) {
       case 'slope': {
+        // A week extrapolated to a month quadruples every wobble, so short
+        // windows report what actually happened instead of a monthly rate
+        if (trend.spanTooShort) {
+          const c = trend.changeOverSpan;
+          if (c === null) return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
+          return {
+            value: `${fmt(c)} kg`,
+            label: t('trendLabelSpan', { days: trend.spanDays }),
+            direction: Math.sign(c),
+          };
+        }
         const v = trend.slopePerMonth;
         if (v === null) return { value: t('trendTooFew'), label: t('trendLabelNone'), direction: 0 };
         return { value: `${fmt(v)} ${t('trendPerMonthUnit')}`, label: t('trendLabelSlope'), direction: Math.sign(v) };

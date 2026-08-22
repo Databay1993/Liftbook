@@ -102,6 +102,7 @@ export default {
   // Trend metrics (tap to switch)
   trendPerMonthUnit: 'kg/mes',
   trendLabelSlope: 'tendencia robusta',
+  trendLabelSpan: 'en {{days}} días',
   trendLabelBlocks: 'Ø3 vs Ø3',
   trendLabelSmoothed: 'suavizado',
   trendLabelNone: 'tendencia',
@@ -122,6 +123,7 @@ export default {
   contextAfter: 'Después de',
   contextVsBest: 'vs. mejor grupo',
   contextTrend: 'En el contexto actual ({{context}}): {{value}} kg/mes',
+  contextChange: 'En el contexto actual ({{context}}): {{value}} kg en {{days}} días. Demasiado corto para una cifra mensual — multiplicaría cualquier oscilación.',
   contextTooFew: 'Solo {{count}} sesiones comparables en «{{context}}» — pocas para una tendencia. Repite este orden más veces y ganará sentido.',
   contextNoGroup: 'Este ejercicio aún no tiene grupo muscular. Asígnalo en Ajustes → Gestionar ejercicios para poder comparar.',
   contextOrderInferred: 'En sesiones antiguas el orden se dedujo del orden de guardado — suele ser correcto, pero no está garantizado.',
