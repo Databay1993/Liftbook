@@ -94,7 +94,7 @@ export default {
   // Charts
   chartE1RM: 'e1RM',
   chartByWeight: 'Wdh pro Gewicht',
-  chartE1RMHint: 'Geschätztes 1RM — bester Satz je Training',
+  chartE1RMHint: 'Geschätztes 1RM — ein Satz je Training',
   chartByWeightHint: 'Wiederholungen pro Gewicht — jede Farbe = ein Gewicht',
   e1rmTapHint: 'Punkt antippen für Details',
   e1rmWeakPoint: 'offener Punkt = geschätzt zu hoch',
@@ -132,6 +132,14 @@ export default {
   deleteExerciseUsage: 'Dabei werden {{sets}} Sätze aus {{workouts}} Trainings mitgelöscht. In {{templates}} Trainingsplänen wird die Übung entfernt. Das lässt sich nicht rückgängig machen.',
   deleteExerciseUnused: 'Für diese Übung ist nichts eingetragen — es geht nichts verloren.',
   deleteExerciseDone: 'Übung gelöscht ✓',
+
+  // Statistics: which set counts
+  setRuleSection: 'Statistik-Regel',
+  setRuleHint: 'Welcher Satz eine Übung in der Statistik vertritt. Betrifft e1RM, Trend, Vergleich und „Wdh pro Gewicht" — nicht Volumen und Rekorde, die zählen immer alle Sätze.',
+  setRuleFirst: 'Nur der erste Satz',
+  setRuleFirstDesc: 'Gleiche Bedingungen bei jedem Training — der erste Satz ist der einzige, der nicht davon abhängt, wie hart der vorherige war. Setzt voraus, dass du keine Aufwärmsätze einträgst.',
+  setRuleBest: 'Bester Satz',
+  setRuleBestDesc: 'Der Satz mit dem höchsten e1RM. Verträgt Aufwärmsätze und Hochtasten, aber ein leichter Satz mit vielen Wiederholungen kann einen schweren verdrängen.',
 
   // Muscle groups
   muscle_chest: 'Brust',
@@ -172,8 +180,8 @@ export default {
   legendE1RMTitle: 'e1RM — geschätztes Maximalgewicht',
   legendE1RMBody: 'Was du theoretisch einmal schaffen würdest, hochgerechnet aus einem normalen Satz. Nach der Epley-Formel: 5 Wiederholungen mit 80 kg ergeben rund 93 kg. Der Vorteil gegenüber dem reinen Gewicht: Ein Satz mit 80 kg × 8 zählt mehr als 80 kg × 5, obwohl das Gewicht gleich ist.',
 
-  legendBestSetTitle: 'Ein Punkt je Training',
-  legendBestSetBody: 'Pro Training zählt nur der beste Satz — der mit dem höchsten e1RM. Aufwärmsätze und lockere Abschlusssätze verwässern die Linie also nicht.',
+  legendBestSetTitle: 'Welcher Satz zählt',
+  legendBestSetBody: 'Pro Training vertritt genau ein Satz die Übung. Voreingestellt ist der erste: Er ist der einzige, der jedes Mal unter gleichen Bedingungen stattfindet — ab Satz zwei hängt alles davon ab, wie hart der vorherige war und wie lange du Pause gemacht hast. Umstellbar in den Einstellungen auf „bester Satz", falls du Aufwärmsätze mitschreibst oder dich hochtastest. Volumen und Rekorde zählen unabhängig davon immer alle Sätze.',
 
   legendRepLimitTitle: 'Warum manche Punkte hohl sind',
   legendRepLimitBody: 'Über {{limit}} Wiederholungen rechnet die Formel zu hoch — 20 leichte Wiederholungen ergeben rechnerisch mehr als eine echte schwere Dreierserie. Solche Sätze verlieren deshalb immer gegen einen normalen Satz. Trägt trotzdem einer ein Training, wird der Punkt hohl gezeichnet: Der Wert steht da, ist aber mit Vorsicht zu lesen.',

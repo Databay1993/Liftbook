@@ -14,10 +14,11 @@ import {
 } from '../storage/database';
 import {
   buildE1RMSeries, summarizeTrend, analyzeContexts,
-  E1RMPoint, TrendSummary, ContextAnalysis,
+  E1RMPoint, TrendSummary, ContextAnalysis, SetRule,
 } from '../lib/analytics';
 import ContextComparison from '../components/ContextComparison';
 import { exerciseLabel } from '../lib/exerciseName';
+import { loadSetRule } from '../lib/setRule';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart, { ChartOverlay } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
@@ -59,6 +60,7 @@ export default function StatsScreen() {
   }, []));
 
   async function load() {
+    const setRule = await loadSetRule();
     const [rows, recent] = await Promise.all([getHistory(), getRecentWorkouts(2)]);
     setRecentSessions(recent);
 
@@ -119,11 +121,11 @@ export default function StatsScreen() {
     const progressData = await Promise.all(
       topExercises.map(async name => {
         const [points, sets, compositions] = await Promise.all([
-          getExerciseProgressByWeight(name),
+          getExerciseProgressByWeight(name, setRule === 'first'),
           getExerciseSets(name),
           getWorkoutCompositions(name),
         ]);
-        const e1rm = buildE1RMSeries(sets);
+        const e1rm = buildE1RMSeries(sets, setRule);
         const muscleGroup = groupOf.get(name) ?? null;
         return {
           name,

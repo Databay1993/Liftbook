@@ -609,6 +609,7 @@ export async function getExerciseProgress(exerciseName: string): Promise<Progres
 export type ExerciseSetRow = {
   workoutId: number;
   date: string;
+  setNumber: number;
   reps: string;
   weight: string;
 };
@@ -619,6 +620,7 @@ export async function getExerciseSets(exerciseName: string): Promise<ExerciseSet
     SELECT
       w.id   as workoutId,
       w.date as date,
+      s.set_number as setNumber,
       s.reps,
       s.weight
     FROM workouts w
@@ -745,6 +747,7 @@ export type ProgressByWeightRow = {
 
 export async function getExerciseProgressByWeight(
   exerciseName: string,
+  firstSetOnly = false,
 ): Promise<ProgressByWeightRow[]> {
   const db = await getDb();
   return db.getAllAsync<ProgressByWeightRow>(`
@@ -757,9 +760,10 @@ export async function getExerciseProgressByWeight(
     WHERE s.exercise_name = ?
       AND CAST(s.weight AS REAL) > 0
       AND CAST(s.reps   AS REAL) > 0
+      AND (? = 0 OR s.set_number = 1)
     GROUP BY w.id, ROUND(CAST(s.weight AS REAL), 1)
     ORDER BY w.date ASC, weight ASC
-  `, exerciseName);
+  `, exerciseName, firstSetOnly ? 1 : 0);
 }
 
 // ── Import / Export ────────────────────────────────────────────

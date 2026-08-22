@@ -94,7 +94,7 @@ export default {
   // Charts
   chartE1RM: 'e1RM',
   chartByWeight: 'Reps per weight',
-  chartE1RMHint: 'Estimated 1RM — best set per session',
+  chartE1RMHint: 'Estimated 1RM — one set per session',
   chartByWeightHint: 'Reps per weight — one color per weight',
   e1rmTapHint: 'Tap a point for details',
   e1rmWeakPoint: 'hollow point = estimate runs high',
@@ -132,6 +132,14 @@ export default {
   deleteExerciseUsage: 'This also deletes {{sets}} sets from {{workouts}} workouts, and removes the exercise from {{templates}} plans. It cannot be undone.',
   deleteExerciseUnused: 'Nothing is logged for this exercise — nothing will be lost.',
   deleteExerciseDone: 'Exercise deleted ✓',
+
+  // Statistics: which set counts
+  setRuleSection: 'Statistics rule',
+  setRuleHint: 'Which set represents an exercise in the statistics. Affects e1RM, trend, comparison and "reps per weight" — not volume and records, which always count every set.',
+  setRuleFirst: 'First set only',
+  setRuleFirstDesc: 'Same conditions every session — the first set is the only one that does not depend on how hard the previous one was. Assumes you do not log warm-up sets.',
+  setRuleBest: 'Best set',
+  setRuleBestDesc: 'The set with the highest e1RM. Tolerates warm-ups and ramp-ups, but a light high-rep set can outrank a heavy one.',
 
   // Muscle groups
   muscle_chest: 'Chest',
@@ -172,8 +180,8 @@ export default {
   legendE1RMTitle: 'e1RM — estimated max',
   legendE1RMBody: 'What you could theoretically lift once, extrapolated from a normal set using the Epley formula: 5 reps at 80 kg works out to about 93 kg. The advantage over raw weight: 80 kg × 8 counts for more than 80 kg × 5, even though the weight is identical.',
 
-  legendBestSetTitle: 'One point per session',
-  legendBestSetBody: 'Only the best set of each session counts — the one with the highest e1RM. Warm-up sets and easy finishers therefore never drag the line down.',
+  legendBestSetTitle: 'Which set counts',
+  legendBestSetBody: 'Exactly one set represents the exercise per session. The first set is the default: it is the only one performed under the same conditions every time — from the second set on, everything depends on how hard the previous one was and how long the rest lasted. Switchable to "best set" in Settings if you log warm-ups or ramp up. Volume and records always count every set regardless.',
 
   legendRepLimitTitle: 'Why some points are hollow',
   legendRepLimitBody: 'Above {{limit}} reps the formula runs high — 20 light reps compute to more than a genuine heavy triple. Such sets therefore always lose to a normal set. If one still carries a session, its point is drawn hollow: the value is shown, but read it with care.',

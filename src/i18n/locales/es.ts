@@ -93,7 +93,7 @@ export default {
   // Charts
   chartE1RM: 'e1RM',
   chartByWeight: 'Reps por peso',
-  chartE1RMHint: '1RM estimado — mejor serie por sesión',
+  chartE1RMHint: '1RM estimado — una serie por sesión',
   chartByWeightHint: 'Reps por peso — un color por peso',
   e1rmTapHint: 'Toca un punto para ver detalles',
   e1rmWeakPoint: 'punto hueco = estimación alta',
@@ -131,6 +131,14 @@ export default {
   deleteExerciseUsage: 'También se borran {{sets}} series de {{workouts}} entrenamientos, y el ejercicio se quita de {{templates}} planes. No se puede deshacer.',
   deleteExerciseUnused: 'No hay nada registrado para este ejercicio — no se perderá nada.',
   deleteExerciseDone: 'Ejercicio eliminado ✓',
+
+  // Statistics: which set counts
+  setRuleSection: 'Regla de estadísticas',
+  setRuleHint: 'Qué serie representa a un ejercicio en las estadísticas. Afecta a e1RM, tendencia, comparación y «reps por peso» — no al volumen ni a los récords, que siempre cuentan todas las series.',
+  setRuleFirst: 'Solo la primera serie',
+  setRuleFirstDesc: 'Mismas condiciones en cada sesión — la primera serie es la única que no depende de lo dura que fue la anterior. Requiere que no registres series de calentamiento.',
+  setRuleBest: 'Mejor serie',
+  setRuleBestDesc: 'La serie con el e1RM más alto. Tolera calentamientos y series progresivas, pero una serie ligera con muchas reps puede superar a una pesada.',
 
   // Muscle groups
   muscle_chest: 'Pecho',
@@ -171,8 +179,8 @@ export default {
   legendE1RMTitle: 'e1RM — máximo estimado',
   legendE1RMBody: 'Lo que teóricamente levantarías una sola vez, extrapolado desde una serie normal con la fórmula de Epley: 5 reps con 80 kg dan unos 93 kg. La ventaja frente al peso puro: 80 kg × 8 vale más que 80 kg × 5, aunque el peso sea el mismo.',
 
-  legendBestSetTitle: 'Un punto por sesión',
-  legendBestSetBody: 'De cada sesión solo cuenta la mejor serie, la de mayor e1RM. Así las series de calentamiento y las suaves del final no arrastran la línea hacia abajo.',
+  legendBestSetTitle: 'Qué serie cuenta',
+  legendBestSetBody: 'Exactamente una serie representa al ejercicio por sesión. Por defecto es la primera: es la única que se hace en las mismas condiciones cada vez — a partir de la segunda todo depende de lo dura que fue la anterior y de cuánto descansaste. Cambiable a «mejor serie» en Ajustes si registras calentamientos o subes progresivamente. El volumen y los récords siempre cuentan todas las series.',
 
   legendRepLimitTitle: 'Por qué algunos puntos son huecos',
   legendRepLimitBody: 'Por encima de {{limit}} repeticiones la fórmula se dispara: 20 reps ligeras calculan más que una triple pesada de verdad. Por eso esas series siempre pierden frente a una normal. Si aun así una sostiene la sesión, su punto se dibuja hueco: el valor está, pero léelo con cuidado.',

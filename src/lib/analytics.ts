@@ -42,13 +42,27 @@ function isBetter(a: E1RMPoint, b: E1RMPoint): boolean {
 }
 
 /**
- * Reduces every training session to its single best set and returns one point
- * per session, oldest first — the series behind the e1RM line.
+ * Which set of a session represents it in the statistics.
+ *
+ * `first` compares like with like: the opening set is the only one trained
+ * under the same conditions every time, since everything after it depends on
+ * how hard the previous set was and how long the rest lasted. It assumes the
+ * first set is a working set, not a warm-up.
+ *
+ * `best` takes the strongest set instead, which tolerates warm-ups and
+ * ramp-ups but lets a light high-rep set outrank a heavy low-rep one.
  */
-export function buildE1RMSeries(rows: ExerciseSetRow[]): E1RMPoint[] {
+export type SetRule = 'first' | 'best';
+
+/**
+ * Reduces every training session to one representative set and returns one
+ * point per session, oldest first — the series behind the e1RM line.
+ */
+export function buildE1RMSeries(rows: ExerciseSetRow[], rule: SetRule = 'first'): E1RMPoint[] {
   const bySession = new Map<number, E1RMPoint>();
 
   for (const row of rows) {
+    if (rule === 'first' && row.setNumber !== 1) continue;
     const weight = parseFloat(row.weight);
     const reps = parseFloat(row.reps);
     const e1rm = epleyE1RM(weight, reps);

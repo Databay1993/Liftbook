@@ -18,6 +18,8 @@ import {
   getExerciseUsage, deleteExerciseCompletely,
 } from '../storage/database';
 import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
+import { loadSetRule, saveSetRule } from '../lib/setRule';
+import type { SetRule } from '../lib/analytics';
 import Toast from '../components/Toast';
 import { exerciseLabel } from '../lib/exerciseName';
 
@@ -44,13 +46,20 @@ export default function SettingsScreen() {
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState('');
   const [groupTarget, setGroupTarget] = useState<string | null>(null);
+  const [setRule, setSetRule] = useState<SetRule>('first');
 
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => {
       if (v) setRestDuration(Number(v));
     });
     loadExercises();
+    loadSetRule().then(setSetRule);
   }, []);
+
+  async function changeSetRule(rule: SetRule) {
+    setSetRule(rule);
+    await saveSetRule(rule);
+  }
 
   async function loadExercises() {
     const all = await getAllExercises();
@@ -262,6 +271,30 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
         <Text style={styles.backupHint}>{t('backupHint')}</Text>
+
+        {/* ── Statistics rule ── */}
+        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('setRuleSection').toUpperCase()}</Text>
+        <Text style={styles.sectionHint}>{t('setRuleHint')}</Text>
+        <View style={styles.exerciseList}>
+          {([
+            { key: 'first', label: t('setRuleFirst'), desc: t('setRuleFirstDesc') },
+            { key: 'best',  label: t('setRuleBest'),  desc: t('setRuleBestDesc')  },
+          ] as { key: SetRule; label: string; desc: string }[]).map(option => (
+            <TouchableOpacity
+              key={option.key}
+              style={[styles.ruleRow, setRule === option.key && styles.ruleRowActive]}
+              onPress={() => changeSetRule(option.key)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.ruleLabel, setRule === option.key && styles.ruleLabelActive]}>
+                  {option.label}
+                </Text>
+                <Text style={styles.ruleDesc}>{option.desc}</Text>
+              </View>
+              {setRule === option.key && <Text style={styles.checkmark}>✓</Text>}
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* ── Exercises ── */}
         <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('exercisesSection' as any).toUpperCase()}</Text>
@@ -529,6 +562,15 @@ function makeStyles(c: Colors) {
     renameBtn: { padding: 4, marginLeft: 6 },
     renameBtnTxt: { fontSize: 16 },
     sectionHint: { fontSize: 11, color: c.muted, lineHeight: 16, marginBottom: 8 },
+    ruleRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingHorizontal: 16, paddingVertical: 12,
+      borderBottomWidth: 1, borderBottomColor: c.border,
+    },
+    ruleRowActive: { backgroundColor: c.accentBg },
+    ruleLabel: { fontSize: 15, color: c.text },
+    ruleLabelActive: { color: c.accent, fontWeight: '700' },
+    ruleDesc: { fontSize: 11, color: c.muted, marginTop: 2, lineHeight: 15 },
 
     groupChip: {
       maxWidth: 150,
