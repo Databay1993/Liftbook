@@ -17,6 +17,7 @@ import {
   E1RMPoint, TrendSummary, ContextAnalysis,
 } from '../lib/analytics';
 import ContextComparison from '../components/ContextComparison';
+import { exerciseLabel } from '../lib/exerciseName';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart, { ChartOverlay } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
@@ -259,7 +260,7 @@ export default function StatsScreen() {
           progress.map(ex => (
             <View key={ex.name} style={styles.progressCard}>
               <TouchableOpacity style={styles.progressHeader} onPress={() => toggleExpand(ex.name)}>
-                <Text style={styles.progressName}>{ex.name}</Text>
+                <Text style={styles.progressName}>{exerciseLabel(ex.name, t)}</Text>
                 <Text style={styles.progressArrow}>{ex.expanded ? '▲' : '▼'}</Text>
               </TouchableOpacity>
 
@@ -341,7 +342,7 @@ export default function StatsScreen() {
           exStats.map(ex => (
             <View key={ex.name} style={styles.prCard}>
               <Text style={styles.prName}>
-                {ex.name}{'  '}
+                {exerciseLabel(ex.name, t)}{'  '}
                 <Text style={styles.prSessions}>{ex.pr.sessionCount} {t('sessions')}</Text>
               </Text>
               <View style={styles.prChips}>
@@ -370,7 +371,7 @@ export default function StatsScreen() {
           exStats.map(ex => (
             <View key={ex.name} style={styles.volBar}>
               <View style={styles.volBarLabel}>
-                <Text style={styles.volBarName}>{ex.name}</Text>
+                <Text style={styles.volBarName}>{exerciseLabel(ex.name, t)}</Text>
                 <Text style={styles.volBarVal}>{ex.totalVol.toLocaleString()} kg</Text>
               </View>
               <View style={styles.volBarBg}>

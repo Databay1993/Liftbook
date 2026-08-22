@@ -2,23 +2,58 @@ import * as SQLite from 'expo-sqlite';
 
 let db: SQLite.SQLiteDatabase;
 
-/** Groups an exercise can belong to; drives which exercises fatigue each other. */
+/**
+ * Groups an exercise can work; drives which exercises fatigue each other.
+ *
+ * An exercise stores several of these, comma-separated, because a squat
+ * leaves neither the quads nor the glutes fresh and a later hamstring
+ * exercise should know that.
+ */
 export const MUSCLE_GROUPS = [
-  'chest', 'back', 'legs', 'shoulders', 'arms', 'core', 'cardio', 'other',
+  'chest', 'back', 'shoulders',
+  'biceps', 'triceps',
+  'quads', 'hamstrings', 'glutes', 'calves', 'adductors',
+  'core', 'cardio', 'other',
 ] as const;
 export type MuscleGroup = typeof MUSCLE_GROUPS[number];
 
-const DEFAULT_MUSCLE_GROUPS: Record<string, MuscleGroup> = {
-  'Bench Press': 'chest',
-  'Squat': 'legs',
-  'Deadlift': 'back',
-  'Overhead Press': 'shoulders',
-  'Pull-Up': 'back',
-  'Barbell Row': 'back',
-  'Bicep Curl': 'arms',
-  'Tricep Pushdown': 'arms',
-  'Leg Press': 'legs',
-  'Lat Pulldown': 'back',
+/** Older single-group values, kept readable by expanding them. */
+const LEGACY_GROUPS: Record<string, string> = {
+  legs: 'quads,hamstrings,glutes',
+  arms: 'biceps,triceps',
+};
+
+const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
+  // Built-in exercises
+  'Bench Press':      'chest,triceps',
+  'Squat':            'quads,glutes',
+  'Deadlift':         'back,hamstrings,glutes',
+  'Overhead Press':   'shoulders,triceps',
+  'Pull-Up':          'back,biceps',
+  'Barbell Row':      'back,biceps',
+  'Bicep Curl':       'biceps',
+  'Tricep Pushdown':  'triceps',
+  'Leg Press':        'quads,glutes',
+  'Lat Pulldown':     'back,biceps',
+
+  // The user's own exercises
+  'Brust Presse':      'chest,triceps',
+  'Bulgarien squat':   'quads,glutes',
+  'Butterfly':         'chest',
+  'Captainchair':      'core',
+  'Copenhagen Plank':  'core,adductors',
+  'Hammer curl':       'biceps',
+  'Klimmzug crunch':   'core',
+  'Leg extention':     'quads',
+  'Legcurl':           'hamstrings',
+  'Reverse Butterfly': 'shoulders',
+  'Rudern':            'back,biceps',
+  'Rücken Strecker':   'back,glutes',
+  'SZ Bizeps':         'biceps',
+  'Seated leg curl':   'hamstrings',
+  'Seitheben':         'shoulders',
+  'Squat Air':         'quads,glutes',
+  'Wade exzentrisch':  'calves',
 };
 
 export async function getDb() {
@@ -26,6 +61,20 @@ export async function getDb() {
     db = await SQLite.openDatabaseAsync('liftbook.db');
   }
   return db;
+}
+
+/** Runs a one-off data fix exactly once per device, then records it. */
+async function runOnce(
+  db: SQLite.SQLiteDatabase,
+  key: string,
+  work: () => Promise<void>,
+): Promise<void> {
+  const done = await db.getFirstAsync<{ key: string }>(
+    'SELECT key FROM applied_migrations WHERE key = ?', key,
+  );
+  if (done) return;
+  await work();
+  await db.runAsync('INSERT OR IGNORE INTO applied_migrations (key) VALUES (?)', key);
 }
 
 export async function initDb() {
@@ -107,13 +156,42 @@ export async function initDb() {
     await db.execAsync(`ALTER TABLE sets ADD COLUMN exercise_order INTEGER DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
-  // Give the seeded exercises a sensible group; never overwrite a user's choice
+  // Tracks one-off data fixes so they never run twice
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS applied_migrations (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Expand the old single-group values into the finer-grained ones
+  for (const [legacy, expanded] of Object.entries(LEGACY_GROUPS)) {
+    await db.runAsync(
+      'UPDATE exercises SET muscle_group = ? WHERE muscle_group = ?',
+      expanded, legacy,
+    );
+  }
+
+  // Give exercises a sensible group; never overwrite a choice already made
   for (const [name, group] of Object.entries(DEFAULT_MUSCLE_GROUPS)) {
     await db.runAsync(
       'UPDATE exercises SET muscle_group = ? WHERE name = ? AND muscle_group IS NULL',
       group, name,
     );
   }
+
+  // Clean-up the user asked for: two unusable entries, one duplicate merged
+  await runOnce(db, 'cleanup-2026-08', async () => {
+    await deleteExerciseCompletely('Awards leg curl');
+    await deleteExerciseCompletely('Cope Hagen  Oma   k rechts');
+    // Same entry, whatever whitespace it was actually stored with
+    const strays = await db.getAllAsync<{ name: string }>(
+      "SELECT name FROM exercises WHERE name LIKE 'Cope%Hagen%'",
+    );
+    for (const s of strays) await deleteExerciseCompletely(s.name);
+
+    await mergeExercises('Klimzug', 'Pull-Up');
+  });
 
   // Migration: add workout_id tracking to workouts (already exists)
   // Seed default exercises if empty
@@ -179,6 +257,30 @@ export async function addCustomExercise(name: string): Promise<void> {
 export async function deleteCustomExercise(name: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM exercises WHERE name = ? AND is_custom = 1', name);
+}
+
+/**
+ * Folds one exercise into another: its sets and plan entries are relabelled,
+ * then the now-empty entry is removed. Used to reunite duplicates that came
+ * from typos, keeping all the history.
+ */
+export async function mergeExercises(from: string, into: string): Promise<void> {
+  const db = await getDb();
+  const target = await db.getFirstAsync<{ name: string }>(
+    'SELECT name FROM exercises WHERE name = ?', into,
+  );
+  if (!target) return;   // nothing to merge into
+
+  await db.runAsync('UPDATE sets SET exercise_name = ? WHERE exercise_name = ?', into, from);
+  // A plan could now list the target twice
+  await db.runAsync(
+    `DELETE FROM template_exercises
+     WHERE exercise_name = ?
+       AND template_id IN (SELECT template_id FROM template_exercises WHERE exercise_name = ?)`,
+    from, into,
+  );
+  await db.runAsync('UPDATE template_exercises SET exercise_name = ? WHERE exercise_name = ?', into, from);
+  await db.runAsync('DELETE FROM exercises WHERE name = ?', from);
 }
 
 /** How much history an exercise carries — shown before offering to delete it. */

@@ -19,6 +19,7 @@ import {
 } from '../storage/database';
 import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
 import Toast from '../components/Toast';
+import { exerciseLabel } from '../lib/exerciseName';
 
 const REST_KEY = '@liftbook_rest';
 const MIN_REST = 10;
@@ -88,8 +89,20 @@ export default function SettingsScreen() {
     );
   }
 
-  async function assignGroup(name: string, group: string | null) {
-    await updateExerciseMuscleGroup(name, group);
+  /** Groups are multi-select: a squat tires quads and glutes alike. */
+  async function toggleGroup(name: string, group: string) {
+    const current = exercises.find(e => e.name === name)?.muscleGroup ?? null;
+    const set = new Set(current ? current.split(',').filter(Boolean) : []);
+    if (set.has(group)) set.delete(group);
+    else set.add(group);
+
+    const next = [...set].join(',') || null;
+    await updateExerciseMuscleGroup(name, next);
+    await loadExercises();
+  }
+
+  async function clearGroups(name: string) {
+    await updateExerciseMuscleGroup(name, null);
     await loadExercises();
     setGroupTarget(null);
   }
@@ -256,13 +269,15 @@ export default function SettingsScreen() {
         <View style={styles.exerciseList}>
           {exercises.map(ex => (
             <View key={ex.name} style={styles.exerciseRow}>
-              <Text style={styles.exerciseName} numberOfLines={1}>{ex.name}</Text>
+              <Text style={styles.exerciseName} numberOfLines={1}>{exerciseLabel(ex.name, t)}</Text>
               <TouchableOpacity
                 style={[styles.groupChip, !ex.muscleGroup && styles.groupChipEmpty]}
                 onPress={() => setGroupTarget(ex.name)}
               >
                 <Text style={[styles.groupChipTxt, !ex.muscleGroup && styles.groupChipTxtEmpty]}>
-                  {ex.muscleGroup ? t(`muscle_${ex.muscleGroup}` as any) : t('muscleGroupNone')}
+                  {ex.muscleGroup
+                    ? ex.muscleGroup.split(',').filter(Boolean).map(g => t(`muscle_${g}` as any)).join(' · ')
+                    : t('muscleGroupNone')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.renameBtn} onPress={() => openRename(ex.name)}>
@@ -301,32 +316,34 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{t('muscleGroupTitle')}</Text>
-            <Text style={styles.modalOldName}>{groupTarget}</Text>
+            <Text style={styles.modalOldName}>{groupTarget && exerciseLabel(groupTarget, t)}</Text>
+            <Text style={styles.modalHint}>{t('muscleGroupMulti')}</Text>
             <View style={styles.groupGrid}>
               {MUSCLE_GROUPS.map(g => {
-                const active = exercises.find(e => e.name === groupTarget)?.muscleGroup === g;
+                const current = exercises.find(e => e.name === groupTarget)?.muscleGroup ?? '';
+                const active = current.split(',').includes(g);
                 return (
                   <TouchableOpacity
                     key={g}
                     style={[styles.groupOption, active && styles.groupOptionActive]}
-                    onPress={() => groupTarget && assignGroup(groupTarget, g)}
+                    onPress={() => groupTarget && toggleGroup(groupTarget, g)}
                   >
                     <Text style={[styles.groupOptionTxt, active && styles.groupOptionTxtActive]}>
-                      {t(`muscle_${g}` as any)}
+                      {active ? '✓ ' : ''}{t(`muscle_${g}` as any)}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
             <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setGroupTarget(null)}>
-                <Text style={styles.modalCancelTxt}>{t('cancel')}</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.modalCancelBtn}
-                onPress={() => groupTarget && assignGroup(groupTarget, null)}
+                onPress={() => groupTarget && clearGroups(groupTarget)}
               >
                 <Text style={styles.modalCancelTxt}>{t('muscleGroupClear')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={() => setGroupTarget(null)}>
+                <Text style={styles.modalSaveTxt}>{t('save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -338,7 +355,7 @@ export default function SettingsScreen() {
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>{t('renameExercise' as any)}</Text>
-            <Text style={styles.modalOldName}>{renameTarget}</Text>
+            <Text style={styles.modalOldName}>{renameTarget && exerciseLabel(renameTarget, t)}</Text>
             <TextInput
               style={styles.modalInput}
               value={renameInput}
@@ -514,10 +531,12 @@ function makeStyles(c: Colors) {
     sectionHint: { fontSize: 11, color: c.muted, lineHeight: 16, marginBottom: 8 },
 
     groupChip: {
+      maxWidth: 150,
       paddingHorizontal: 10, paddingVertical: 4,
       borderRadius: 12, borderWidth: 1,
       borderColor: c.accentBorder, backgroundColor: c.accentBg,
     },
+    modalHint: { fontSize: 11, color: c.muted, lineHeight: 16 },
     groupChipEmpty: { borderColor: c.border, backgroundColor: c.surface2, borderStyle: 'dashed' },
     groupChipTxt: { fontSize: 11, color: c.accent, fontWeight: '600' },
     groupChipTxtEmpty: { color: c.muted, fontWeight: '400' },

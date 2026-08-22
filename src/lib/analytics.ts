@@ -299,6 +299,18 @@ export function summarizeTrend(points: E1RMPoint[]): TrendSummary {
  * is ignored — pull-up→lat-pulldown→row counts the same as the reverse, which
  * keeps groups large enough to say anything.
  */
+/** Splits the stored comma-separated groups into a set. */
+export function parseGroups(value: string | null): Set<string> {
+  if (!value) return new Set();
+  return new Set(value.split(',').map(g => g.trim()).filter(Boolean));
+}
+
+/** Two exercises fatigue each other when they share at least one group. */
+export function sharesMuscle(a: Set<string>, b: Set<string>): boolean {
+  for (const group of a) if (b.has(group)) return true;
+  return false;
+}
+
 export function contextKey(
   composition: WorkoutComposition,
   exerciseName: string,
@@ -307,9 +319,12 @@ export function contextKey(
   const index = composition.exercises.findIndex(e => e.name === exerciseName);
   if (index < 0) return null;
 
+  const own = parseGroups(muscleGroup);
+  if (own.size === 0) return null;
+
   const preceding = composition.exercises
     .slice(0, index)
-    .filter(e => muscleGroup !== null && e.muscleGroup === muscleGroup)
+    .filter(e => sharesMuscle(own, parseGroups(e.muscleGroup)))
     .map(e => e.name)
     .sort();
 

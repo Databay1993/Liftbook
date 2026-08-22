@@ -17,6 +17,7 @@ import {
   updateExerciseRestTime, updateExerciseHasSides, getHistory,
 } from '../storage/database';
 import { useTimer } from '../hooks/useTimer';
+import { exerciseLabel } from '../lib/exerciseName';
 import TimerBubble from '../components/TimerBubble';
 import Toast from '../components/Toast';
 import WorkoutSummary from '../components/WorkoutSummary';
@@ -426,7 +427,7 @@ export default function WorkoutScreen({ navigation }: any) {
               {/* Exercise header */}
               <View style={styles.exHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.exName}>{ex.name}</Text>
+                  <Text style={styles.exName}>{exerciseLabel(ex.name, t)}</Text>
 
                   {/* Rest time badge + inline picker */}
                   {!disabled && (
@@ -756,7 +757,7 @@ export default function WorkoutScreen({ navigation }: any) {
                 return (
                   <TouchableOpacity style={styles.exListItem} onPress={() => handleAddExercise(item.name)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={styles.exListText}>{item.name}</Text>
+                      <Text style={styles.exListText}>{exerciseLabel(item.name, t)}</Text>
                       {item.isCustom && <Text style={styles.customTag}>{t('custom')}</Text>}
                     </View>
                     {added && <Text style={styles.addedCheck}>✓</Text>}

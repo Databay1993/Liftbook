@@ -13,6 +13,7 @@ import {
   getAllExercises, createTemplate, updateTemplate, addCustomExercise, Template,
 } from '../storage/database';
 import Toast from '../components/Toast';
+import { exerciseLabel } from '../lib/exerciseName';
 
 const ITEM_H = 60;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -238,7 +239,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
 
                     <Text style={styles.posNum}>{idx + 1}</Text>
 
-                    <Text style={styles.rowName} numberOfLines={1}>{ex}</Text>
+                    <Text style={styles.rowName} numberOfLines={1}>{exerciseLabel(ex, t)}</Text>
 
                     <TouchableOpacity
                       style={[styles.moveBtn, idx === 0 && styles.moveBtnOff]}
@@ -342,7 +343,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
                   style={[styles.exRow, sel && styles.exRowSel]}
                   onPress={() => toggleExercise(item.name)}
                 >
-                  <Text style={[styles.exRowName, sel && { color: colors.accent }]}>{item.name}</Text>
+                  <Text style={[styles.exRowName, sel && { color: colors.accent }]}>{exerciseLabel(item.name, t)}</Text>
                   {item.isCustom && <Text style={styles.badge}>{t('custom')}</Text>}
                   {sel && <Text style={styles.check}>✓</Text>}
                 </TouchableOpacity>

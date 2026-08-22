@@ -6,6 +6,7 @@ import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import { SessionDetail } from '../storage/database';
 import { summarizeSets, sessionVolume } from '../lib/analytics';
+import { exerciseLabel } from '../lib/exerciseName';
 
 interface Props {
   sessions: SessionDetail[];
@@ -55,7 +56,7 @@ export default function RecentSessions({ sessions }: Props) {
             return (
               <View key={ex.name} style={styles.exRow}>
                 <View style={styles.exHeader}>
-                  <Text style={styles.exName} numberOfLines={1}>{ex.name}</Text>
+                  <Text style={styles.exName} numberOfLines={1}>{exerciseLabel(ex.name, t)}</Text>
                   <Text style={styles.exCount}>
                     {ex.sets.length} {t('sets')}
                     {vol > 0 ? ` · ${Math.round(vol)} kg` : ''}
