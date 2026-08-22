@@ -135,7 +135,8 @@ export default {
 
   // Muscle groups
   muscle_chest: 'Brust',
-  muscle_back: 'Rücken',
+  muscle_back: 'Oberer Rücken',
+  muscle_lower_back: 'Unterer Rücken',
   muscle_shoulders: 'Schultern',
   muscle_biceps: 'Bizeps',
   muscle_triceps: 'Trizeps',

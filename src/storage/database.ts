@@ -10,7 +10,7 @@ let db: SQLite.SQLiteDatabase;
  * exercise should know that.
  */
 export const MUSCLE_GROUPS = [
-  'chest', 'back', 'shoulders',
+  'chest', 'back', 'lower_back', 'shoulders',
   'biceps', 'triceps',
   'quads', 'hamstrings', 'glutes', 'calves', 'adductors',
   'core', 'cardio', 'other',
@@ -27,7 +27,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   // Built-in exercises
   'Bench Press':      'chest,triceps',
   'Squat':            'quads,glutes',
-  'Deadlift':         'back,hamstrings,glutes',
+  'Deadlift':         'lower_back,hamstrings,glutes',
   'Overhead Press':   'shoulders,triceps',
   'Pull-Up':          'back,biceps',
   'Barbell Row':      'back,biceps',
@@ -48,7 +48,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Legcurl':           'hamstrings',
   'Reverse Butterfly': 'shoulders',
   'Rudern':            'back,biceps',
-  'Rücken Strecker':   'back',
+  'Rücken Strecker':   'lower_back',
   'SZ Bizeps':         'biceps',
   'Seated leg curl':   'hamstrings',
   'Seitheben':         'shoulders',
@@ -199,6 +199,19 @@ export async function initDb() {
   await runOnce(db, 'groups-main-movers-1', async () => {
     const corrections: Record<string, string> = {
       'Rücken Strecker': 'back',   // glutes only assist here
+    };
+    for (const [name, group] of Object.entries(corrections)) {
+      await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);
+    }
+  });
+
+  // The erectors work differently enough from lats and rhomboids to be their
+  // own group: back extensions leave the lower back spent while a pulldown
+  // right after is unaffected.
+  await runOnce(db, 'groups-lower-back-1', async () => {
+    const corrections: Record<string, string> = {
+      'Rücken Strecker': 'lower_back',
+      'Deadlift':        'lower_back,hamstrings,glutes',
     };
     for (const [name, group] of Object.entries(corrections)) {
       await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', group, name);

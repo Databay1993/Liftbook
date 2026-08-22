@@ -134,7 +134,8 @@ export default {
 
   // Muscle groups
   muscle_chest: 'Pecho',
-  muscle_back: 'Espalda',
+  muscle_back: 'Espalda alta',
+  muscle_lower_back: 'Lumbar',
   muscle_shoulders: 'Hombros',
   muscle_biceps: 'Bíceps',
   muscle_triceps: 'Tríceps',
