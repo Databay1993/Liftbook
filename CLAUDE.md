@@ -5,10 +5,16 @@ persistence, React Navigation bottom tabs, i18n in DE/EN/ES.
 
 ## Deploying changes to the phone
 
-The user runs Liftbook on an iPhone through Expo Go, loading **published EAS
-Updates** — not a local dev server. There is no standalone build and no Apple
-Developer account. Do not tell the user to start a dev server or scan a LAN QR
-code; that only works while their PC is running and on the same WiFi.
+The user runs Liftbook on **two devices at once**: an iPhone through Expo Go,
+and an Android phone with an installed APK from `eas build --profile preview`.
+Both sit on the same `preview` branch/channel at runtime version `1.0.0`, so a
+single `eas update` reaches both — always publish for both, never one platform
+only.
+
+Updates are loaded from the published EAS Update, not from a local dev server.
+There is no iOS standalone build and no Apple Developer account. Do not tell
+the user to start a dev server or scan a LAN QR code; that only works while
+their PC is running and on the same WiFi.
 
 After pushing code, the user runs this one command on their Windows PC
 (`C:\Users\Dominik\Liftbook`):

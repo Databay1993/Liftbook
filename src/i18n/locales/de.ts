@@ -86,6 +86,20 @@ export default {
   progressCharts: 'Fortschritt',
   noLastWorkout: 'Noch kein Workout',
 
+  // Recent sessions
+  recentSessions: 'Letzte Trainings',
+  sessionLatest: 'Zuletzt',
+  sessionPrevious: 'Davor',
+
+  // Charts
+  chartE1RM: 'e1RM',
+  chartByWeight: 'Wdh pro Gewicht',
+  chartE1RMHint: 'Geschätztes 1RM — bester Satz je Training',
+  chartByWeightHint: 'Wiederholungen pro Gewicht — jede Farbe = ein Gewicht',
+  e1rmTapHint: 'Punkt antippen für Details',
+  e1rmWeakPoint: 'offener Punkt = geschätzt zu hoch',
+  e1rmOverestimated: 'Über {{limit}} Wdh. — Schätzung fällt zu hoch aus',
+
   // Settings
   settings: 'Einstellungen',
   language: 'Sprache',

@@ -86,6 +86,20 @@ export default {
   progressCharts: 'Progress',
   noLastWorkout: 'No workouts yet',
 
+  // Recent sessions
+  recentSessions: 'Recent Sessions',
+  sessionLatest: 'Latest',
+  sessionPrevious: 'Before that',
+
+  // Charts
+  chartE1RM: 'e1RM',
+  chartByWeight: 'Reps per weight',
+  chartE1RMHint: 'Estimated 1RM — best set per session',
+  chartByWeightHint: 'Reps per weight — one color per weight',
+  e1rmTapHint: 'Tap a point for details',
+  e1rmWeakPoint: 'hollow point = estimate runs high',
+  e1rmOverestimated: 'Over {{limit}} reps — estimate runs high',
+
   // Settings
   settings: 'Settings',
   language: 'Language',

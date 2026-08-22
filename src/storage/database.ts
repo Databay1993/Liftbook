@@ -324,6 +324,81 @@ export async function getExerciseProgress(exerciseName: string): Promise<Progres
   }));
 }
 
+// ── Raw sets per exercise (for e1RM analysis) ─────────────────
+
+export type ExerciseSetRow = {
+  workoutId: number;
+  date: string;
+  reps: string;
+  weight: string;
+};
+
+export async function getExerciseSets(exerciseName: string): Promise<ExerciseSetRow[]> {
+  const db = await getDb();
+  return db.getAllAsync<ExerciseSetRow>(`
+    SELECT
+      w.id   as workoutId,
+      w.date as date,
+      s.reps,
+      s.weight
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    WHERE s.exercise_name = ?
+    ORDER BY w.date ASC, s.set_number ASC
+  `, exerciseName);
+}
+
+// ── Recent sessions (last N workouts with full set detail) ────
+
+export type SessionSet = { reps: string; weight: string; side: string | null };
+export type SessionExercise = { name: string; trackingType: string; sets: SessionSet[] };
+export type SessionDetail = { workoutId: number; date: string; exercises: SessionExercise[] };
+
+export async function getRecentWorkouts(limit = 2): Promise<SessionDetail[]> {
+  const db = await getDb();
+  const workouts = await db.getAllAsync<{ id: number; date: string }>(`
+    SELECT w.id, w.date
+    FROM workouts w
+    WHERE EXISTS (SELECT 1 FROM sets s WHERE s.workout_id = w.id)
+    ORDER BY w.date DESC, w.id DESC
+    LIMIT ?
+  `, limit);
+
+  const sessions: SessionDetail[] = [];
+  for (const w of workouts) {
+    const rows = await db.getAllAsync<{
+      exercise_name: string;
+      tracking_type: string | null;
+      reps: string;
+      weight: string;
+      side: string | null;
+    }>(`
+      SELECT s.exercise_name, e.tracking_type, s.reps, s.weight, s.side
+      FROM sets s
+      LEFT JOIN exercises e ON e.name = s.exercise_name
+      WHERE s.workout_id = ?
+      ORDER BY s.set_number ASC
+    `, w.id);
+
+    const order: string[] = [];
+    const exMap: Record<string, SessionExercise> = {};
+    for (const r of rows) {
+      if (!exMap[r.exercise_name]) {
+        exMap[r.exercise_name] = {
+          name: r.exercise_name,
+          trackingType: r.tracking_type ?? 'weight_reps',
+          sets: [],
+        };
+        order.push(r.exercise_name);
+      }
+      exMap[r.exercise_name].sets.push({ reps: r.reps, weight: r.weight, side: r.side });
+    }
+
+    sessions.push({ workoutId: w.id, date: w.date, exercises: order.map(n => exMap[n]) });
+  }
+  return sessions;
+}
+
 // ── Progress by weight (reps per weight per session) ──────────
 
 export type ProgressByWeightRow = {

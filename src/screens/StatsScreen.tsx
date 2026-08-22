@@ -8,14 +8,25 @@ import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import {
   getHistory, HistoryRow,
-  getLastWorkoutDetail, LastWorkoutExercise,
+  getRecentWorkouts, SessionDetail,
   getExerciseProgressByWeight, ProgressByWeightRow,
+  getExerciseSets,
 } from '../storage/database';
+import { buildE1RMSeries, e1rmTrend, E1RMPoint } from '../lib/analytics';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
+import E1RMChart from '../components/E1RMChart';
+import RecentSessions from '../components/RecentSessions';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
-type ExProgress = { name: string; points: ProgressByWeightRow[]; expanded: boolean };
+type ChartMode = 'e1rm' | 'byWeight';
+type ExProgress = {
+  name: string;
+  points: ProgressByWeightRow[];
+  e1rm: E1RMPoint[];
+  expanded: boolean;
+  mode: ChartMode;
+};
 
 export default function StatsScreen() {
   const { t } = useTranslation();
@@ -26,7 +37,7 @@ export default function StatsScreen() {
   const [exStats, setExStats] = useState<ExStats[]>([]);
   const [totals, setTotals] = useState({ workouts: 0, sets: 0, volume: 0 });
   const [weekFreq, setWeekFreq] = useState<{ week: string; count: number }[]>([]);
-  const [lastWorkout, setLastWorkout] = useState<{ date: string; exercises: LastWorkoutExercise[] } | null>(null);
+  const [recentSessions, setRecentSessions] = useState<SessionDetail[]>([]);
   const [progress, setProgress] = useState<ExProgress[]>([]);
 
   useFocusEffect(useCallback(() => {
@@ -34,8 +45,8 @@ export default function StatsScreen() {
   }, []));
 
   async function load() {
-    const [rows, last] = await Promise.all([getHistory(), getLastWorkoutDetail()]);
-    setLastWorkout(last);
+    const [rows, recent] = await Promise.all([getHistory(), getRecentWorkouts(2)]);
+    setRecentSessions(recent);
 
     if (rows.length === 0) return;
 
@@ -89,11 +100,19 @@ export default function StatsScreen() {
     // Progress data for each exercise (load all, expand on tap)
     const topExercises = stats.slice(0, 10).map(e => e.name);
     const progressData = await Promise.all(
-      topExercises.map(async name => ({
-        name,
-        points: await getExerciseProgressByWeight(name),
-        expanded: false,
-      }))
+      topExercises.map(async name => {
+        const [points, sets] = await Promise.all([
+          getExerciseProgressByWeight(name),
+          getExerciseSets(name),
+        ]);
+        return {
+          name,
+          points,
+          e1rm: buildE1RMSeries(sets),
+          expanded: false,
+          mode: 'e1rm' as ChartMode,
+        };
+      })
     );
     setProgress(progressData);
   }
@@ -104,13 +123,11 @@ export default function StatsScreen() {
     ));
   }
 
+  function setChartMode(name: string, mode: ChartMode) {
+    setProgress(prev => prev.map(p => p.name === name ? { ...p, mode } : p));
+  }
+
   const maxVol = Math.max(...exStats.map(e => e.totalVol), 1);
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'long' });
-
-  const formatShortDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -135,30 +152,9 @@ export default function StatsScreen() {
           ))}
         </View>
 
-        {/* ── Last Workout ── */}
-        <Text style={styles.sectionTitle}>{t('lastWorkout').toUpperCase()}</Text>
-        {!lastWorkout ? (
-          <Text style={styles.empty}>{t('noLastWorkout')}</Text>
-        ) : (
-          <View style={styles.lastCard}>
-            <Text style={styles.lastDate}>{formatDate(lastWorkout.date)}</Text>
-            <View style={styles.lastExList}>
-              {lastWorkout.exercises.map(ex => {
-                const vol = ex.sets.reduce((s, set) =>
-                  s + (parseFloat(set.reps) || 0) * (parseFloat(set.weight) || 0), 0);
-                return (
-                  <View key={ex.name} style={styles.lastExRow}>
-                    <Text style={styles.lastExName}>{ex.name}</Text>
-                    <Text style={styles.lastExMeta}>
-                      {ex.sets.length} {t('sets')}
-                      {vol > 0 ? `  ·  ${Math.round(vol)} kg` : ''}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
+        {/* ── Recent sessions (last + previous) ── */}
+        <Text style={styles.sectionTitle}>{t('recentSessions').toUpperCase()}</Text>
+        <RecentSessions sessions={recentSessions} />
 
         {/* ── Progress Charts ── */}
         <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('progressCharts').toUpperCase()}</Text>
@@ -174,11 +170,48 @@ export default function StatsScreen() {
 
               {ex.expanded && (
                 <View style={styles.chartWrap}>
+                  {/* Mode toggle */}
+                  <View style={styles.modeToggle}>
+                    {([
+                      { key: 'e1rm',     label: t('chartE1RM')     },
+                      { key: 'byWeight', label: t('chartByWeight') },
+                    ] as { key: ChartMode; label: string }[]).map(m => (
+                      <TouchableOpacity
+                        key={m.key}
+                        style={[styles.modeBtn, ex.mode === m.key && styles.modeBtnActive]}
+                        onPress={() => setChartMode(ex.name, m.key)}
+                      >
+                        <Text style={[styles.modeBtnTxt, ex.mode === m.key && styles.modeBtnTxtActive]}>
+                          {m.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
                   <View style={styles.chartSection}>
-                    <Text style={styles.chartLabel}>
-                      Wiederholungen pro Gewicht — jede Farbe = ein Gewicht
-                    </Text>
-                    <ProgressChartByWeight data={ex.points} />
+                    {ex.mode === 'e1rm' ? (
+                      <>
+                        <View style={styles.chartHeadRow}>
+                          <Text style={styles.chartLabel}>{t('chartE1RMHint')}</Text>
+                          {(() => {
+                            const trend = e1rmTrend(ex.e1rm);
+                            if (trend === null) return null;
+                            const up = trend >= 0;
+                            return (
+                              <Text style={[styles.trend, { color: up ? colors.accent : colors.danger }]}>
+                                {up ? '▲' : '▼'} {Math.abs(Math.round(trend))}kg
+                              </Text>
+                            );
+                          })()}
+                        </View>
+                        <E1RMChart points={ex.e1rm} />
+                      </>
+                    ) : (
+                      <>
+                        <Text style={styles.chartLabel}>{t('chartByWeightHint')}</Text>
+                        <ProgressChartByWeight data={ex.points} />
+                      </>
+                    )}
                   </View>
                 </View>
               )}
@@ -278,28 +311,6 @@ function makeStyles(c: Colors) {
     statNum: { fontFamily: 'BebasNeue_400Regular', fontSize: 30, color: c.accent },
     statLabel: { fontSize: 10, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 2 },
 
-    // Last Workout
-    lastCard: {
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 10,
-      padding: 14,
-      marginBottom: 4,
-    },
-    lastDate: { fontFamily: 'BebasNeue_400Regular', fontSize: 16, letterSpacing: 1, color: c.accent, marginBottom: 10 },
-    lastExList: { gap: 6 },
-    lastExRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 6,
-      borderTopWidth: 1,
-      borderTopColor: c.border,
-    },
-    lastExName: { fontSize: 14, color: c.text, fontWeight: '500' },
-    lastExMeta: { fontSize: 12, color: c.muted },
-
     // Progress Charts
     progressCard: {
       backgroundColor: c.surface,
@@ -318,8 +329,38 @@ function makeStyles(c: Colors) {
     progressName: { fontWeight: '600', fontSize: 14, color: c.text, flex: 1 },
     progressArrow: { color: c.muted, fontSize: 12 },
     chartWrap: { paddingHorizontal: 8, paddingBottom: 12, borderTopWidth: 1, borderTopColor: c.border },
-    chartSection: { marginTop: 12 },
-    chartLabel: { fontSize: 11, color: c.muted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4, paddingHorizontal: 4 },
+    chartSection: { marginTop: 10 },
+    chartHeadRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      paddingHorizontal: 4,
+    },
+    chartLabel: {
+      flex: 1,
+      fontSize: 11, color: c.muted,
+      textTransform: 'uppercase', letterSpacing: 1,
+      marginBottom: 4, paddingHorizontal: 4,
+    },
+    trend: { fontFamily: 'BebasNeue_400Regular', fontSize: 16, marginBottom: 4 },
+
+    // Chart mode toggle
+    modeToggle: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 12,
+      paddingHorizontal: 4,
+    },
+    modeBtn: {
+      paddingHorizontal: 12, paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1, borderColor: c.border,
+      backgroundColor: c.surface2,
+    },
+    modeBtnActive: { borderColor: c.accent, backgroundColor: c.accentBg },
+    modeBtnTxt: { fontSize: 11, color: c.muted },
+    modeBtnTxtActive: { color: c.accent, fontWeight: '700' },
 
     // PRs
     prCard: {
