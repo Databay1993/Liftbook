@@ -109,6 +109,46 @@ export default {
   trendTooFew: 'zu wenig',
   trendRampNote: 'Wiedereinstieg ausgeklammert',
 
+  // Legend
+  legendButton: 'Legende',
+  legendTitle: 'Wie die Statistik rechnet',
+  legendIntro: 'Alle Werte entstehen aus deinen eingetragenen Sätzen. Hier steht, was jede Zahl genau misst — und wo sie an ihre Grenzen kommt.',
+
+  legendE1RMTitle: 'e1RM — geschätztes Maximalgewicht',
+  legendE1RMBody: 'Was du theoretisch einmal schaffen würdest, hochgerechnet aus einem normalen Satz. Nach der Epley-Formel: 5 Wiederholungen mit 80 kg ergeben rund 93 kg. Der Vorteil gegenüber dem reinen Gewicht: Ein Satz mit 80 kg × 8 zählt mehr als 80 kg × 5, obwohl das Gewicht gleich ist.',
+
+  legendBestSetTitle: 'Ein Punkt je Training',
+  legendBestSetBody: 'Pro Training zählt nur der beste Satz — der mit dem höchsten e1RM. Aufwärmsätze und lockere Abschlusssätze verwässern die Linie also nicht.',
+
+  legendRepLimitTitle: 'Warum manche Punkte hohl sind',
+  legendRepLimitBody: 'Über {{limit}} Wiederholungen rechnet die Formel zu hoch — 20 leichte Wiederholungen ergeben rechnerisch mehr als eine echte schwere Dreierserie. Solche Sätze verlieren deshalb immer gegen einen normalen Satz. Trägt trotzdem einer ein Training, wird der Punkt hohl gezeichnet: Der Wert steht da, ist aber mit Vorsicht zu lesen.',
+
+  legendBlocksTitle: 'Trainingsblöcke',
+  legendBlocksBody: 'Liegen zwischen zwei Trainings mehr als {{gap}} Tage, beginnt ein neuer Block. Der Trend rechnet nur im aktuellen Block — Zahlen von vor einer langen Pause verfälschen nichts mehr.',
+
+  legendRampTitle: 'Wiedereinstieg',
+  legendRampBody: 'Nach einer Pause steigt man bewusst leicht wieder ein. Das sieht rechnerisch nach enormem Fortschritt aus, ist aber keiner. Deshalb bleiben die ersten {{ramp}} Trainings eines Blocks aus allen Kennzahlen heraus — im Chart sind sie ausgegraut noch zu sehen. Bleiben danach weniger als {{minPoints}} Trainings übrig, steht „zu wenig" statt einer Zahl.',
+
+  legendSlopeTitle: 'Trend robust (kg/Monat)',
+  legendSlopeBody: 'Die Steigung zwischen jedem möglichen Punktepaar wird berechnet, davon der mittlere Wert genommen (Theil-Sen). Ein einzelner schlechter Tag kann das Ergebnis dadurch kaum verschieben. Paare, die weniger als {{pair}} Tage auseinanderliegen, zählen nicht mit — zwei Trainings an Folgetagen ergeben sonst absurde Hochrechnungen.',
+
+  legendBlockCompareTitle: 'Ø3 vs Ø3',
+  legendBlockCompareBody: 'Durchschnitt der letzten drei Trainings gegen den Durchschnitt der drei davor. Einfach nachvollziehbar und unempfindlich gegen einzelne Ausreißer, betrachtet aber nur die jüngsten sechs Trainings.',
+
+  legendEwmaTitle: 'Geglättet',
+  legendEwmaBody: 'Ein gleitender Mittelwert, bei dem jüngere Trainings stärker zählen (Zeitkonstante {{tau}} Tage). Er gewichtet nach echten Tagesabständen: Ein Training nach drei Wochen Pause bewegt die Kurve deutlich stärker als eines am Folgetag. Die blaue Linie im Chart zeigt diesen Verlauf.',
+
+  legendByWeightTitle: 'Wdh pro Gewicht',
+  legendByWeightBody: 'Die andere Chart-Ansicht: eine Linie je Gewicht, die zeigt, wie viele Wiederholungen du damit über die Zeit schaffst. Nützlich, wenn du lange beim selben Gewicht bleibst und die Steigerung in den Wiederholungen steckt.',
+
+  legendRecentTitle: 'Letzte Trainings',
+  legendRecentBody: 'Die zwei jüngsten Einheiten mit allen Übungen und Sätzen — gedacht als Blick zurück für die Frage, was heute dran ist.',
+
+  legendPRTitle: 'Rekorde und Volumen',
+  legendPRBody: 'Max Gewicht ist das schwerste je bewegte Gewicht, Max Wdh die höchste Wiederholungszahl, Best Vol der stärkste Einzelsatz (Gewicht × Wdh). Volumen ist alles zusammengerechnet: jeder Satz mit Gewicht × Wiederholungen.',
+
+  legendFootnote: 'Der e1RM-Chart braucht Gewicht und Wiederholungen. Bei Übungen, die auf Zeit, Bodyweight oder Prozent laufen, bleibt er leer — dort hilft die Ansicht „Wdh pro Gewicht".',
+
   // Settings
   settings: 'Einstellungen',
   language: 'Sprache',

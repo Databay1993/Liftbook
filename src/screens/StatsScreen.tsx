@@ -16,6 +16,7 @@ import { buildE1RMSeries, summarizeTrend, E1RMPoint, TrendSummary } from '../lib
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
+import StatsLegend from '../components/StatsLegend';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
@@ -43,6 +44,7 @@ export default function StatsScreen() {
   const [totals, setTotals] = useState({ workouts: 0, sets: 0, volume: 0 });
   const [weekFreq, setWeekFreq] = useState<{ week: string; count: number }[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionDetail[]>([]);
+  const [showLegend, setShowLegend] = useState(false);
   const [progress, setProgress] = useState<ExProgress[]>([]);
 
   useFocusEffect(useCallback(() => {
@@ -178,7 +180,12 @@ export default function StatsScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}>
-        <Text style={styles.pageTitle}>{t('stats').toUpperCase()}</Text>
+        <View style={styles.pageTitleRow}>
+          <Text style={styles.pageTitle}>{t('stats').toUpperCase()}</Text>
+          <TouchableOpacity style={styles.legendBtn} onPress={() => setShowLegend(true)}>
+            <Text style={styles.legendBtnTxt}>ℹ {t('legendButton')}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* ── Totals ── */}
         <View style={styles.statsRow}>
@@ -331,6 +338,8 @@ export default function StatsScreen() {
           )}
         </View>
       </ScrollView>
+
+      <StatsLegend visible={showLegend} onClose={() => setShowLegend(false)} />
     </View>
   );
 }
@@ -348,7 +357,21 @@ function makeStyles(c: Colors) {
     logo: { fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 3, color: c.accent },
     scroll: { flex: 1 },
     content: { padding: 16 },
-    pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 16 },
+    pageTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+      gap: 8,
+    },
+    pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted },
+    legendBtn: {
+      paddingHorizontal: 12, paddingVertical: 5,
+      borderRadius: 14,
+      borderWidth: 1, borderColor: c.border,
+      backgroundColor: c.surface2,
+    },
+    legendBtnTxt: { fontSize: 11, color: c.muted },
     sectionTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 10 },
     empty: { color: c.muted, fontSize: 13, paddingVertical: 8 },
 

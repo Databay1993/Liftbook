@@ -108,6 +108,46 @@ export default {
   trendTooFew: 'pocos datos',
   trendRampNote: 'reinicio excluido',
 
+  // Legend
+  legendButton: 'Leyenda',
+  legendTitle: 'Cómo se calculan las estadísticas',
+  legendIntro: 'Todos los valores salen de las series que registras. Aquí se explica qué mide cada número y dónde deja de ser fiable.',
+
+  legendE1RMTitle: 'e1RM — máximo estimado',
+  legendE1RMBody: 'Lo que teóricamente levantarías una sola vez, extrapolado desde una serie normal con la fórmula de Epley: 5 reps con 80 kg dan unos 93 kg. La ventaja frente al peso puro: 80 kg × 8 vale más que 80 kg × 5, aunque el peso sea el mismo.',
+
+  legendBestSetTitle: 'Un punto por sesión',
+  legendBestSetBody: 'De cada sesión solo cuenta la mejor serie, la de mayor e1RM. Así las series de calentamiento y las suaves del final no arrastran la línea hacia abajo.',
+
+  legendRepLimitTitle: 'Por qué algunos puntos son huecos',
+  legendRepLimitBody: 'Por encima de {{limit}} repeticiones la fórmula se dispara: 20 reps ligeras calculan más que una triple pesada de verdad. Por eso esas series siempre pierden frente a una normal. Si aun así una sostiene la sesión, su punto se dibuja hueco: el valor está, pero léelo con cuidado.',
+
+  legendBlocksTitle: 'Bloques de entrenamiento',
+  legendBlocksBody: 'Más de {{gap}} días entre sesiones inicia un bloque nuevo, y la tendencia solo usa el actual. Los datos anteriores a una pausa larga ya no distorsionan nada.',
+
+  legendRampTitle: 'Vuelta tras una pausa',
+  legendRampBody: 'Tras un parón se vuelve a empezar ligero a propósito. Eso calcula como un progreso enorme sin serlo, así que las primeras {{ramp}} sesiones de un bloque quedan fuera de todas las métricas — en el gráfico siguen visibles, atenuadas. Si después quedan menos de {{minPoints}} sesiones, verás «pocos datos» en lugar de un número.',
+
+  legendSlopeTitle: 'Tendencia robusta (kg/mes)',
+  legendSlopeBody: 'Se calcula la pendiente entre cada par de puntos posible y se toma el valor central (Theil–Sen), de modo que un solo mal día apenas mueve el resultado. Los pares separados por menos de {{pair}} días no cuentan: dos sesiones en días seguidos darían proyecciones absurdas.',
+
+  legendBlockCompareTitle: 'Ø3 vs Ø3',
+  legendBlockCompareBody: 'La media de las tres últimas sesiones frente a la media de las tres anteriores. Fácil de seguir y resistente a valores sueltos, pero solo mira las seis sesiones más recientes.',
+
+  legendEwmaTitle: 'Suavizado',
+  legendEwmaBody: 'Una media móvil que pondera más las sesiones recientes (constante de tiempo {{tau}} días). Pesa según los días transcurridos reales: una sesión tras tres semanas de pausa mueve la curva mucho más que una del día siguiente. La línea azul del gráfico la muestra.',
+
+  legendByWeightTitle: 'Reps por peso',
+  legendByWeightBody: 'La otra vista del gráfico: una línea por peso, que muestra cuántas repeticiones logras con él a lo largo del tiempo. Útil cuando te mantienes en el mismo peso y el progreso está en las repeticiones.',
+
+  legendRecentTitle: 'Últimas sesiones',
+  legendRecentBody: 'Tus dos sesiones más recientes con todos los ejercicios y series — pensado para mirar atrás al decidir qué toca hoy.',
+
+  legendPRTitle: 'Récords y volumen',
+  legendPRBody: 'Peso máx. es lo más pesado que has movido, reps máx. el mayor número de repeticiones, mejor vol. la serie individual más fuerte (peso × reps). El volumen es todo sumado: cada serie como peso × reps.',
+
+  legendFootnote: 'El gráfico e1RM necesita peso y repeticiones. En ejercicios por tiempo, peso corporal o porcentaje queda vacío — ahí sirve la vista «reps por peso».',
+
   // Settings
   settings: 'Ajustes',
   language: 'Idioma',

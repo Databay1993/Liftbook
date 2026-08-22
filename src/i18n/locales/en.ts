@@ -109,6 +109,46 @@ export default {
   trendTooFew: 'too few',
   trendRampNote: 'ramp-up excluded',
 
+  // Legend
+  legendButton: 'Legend',
+  legendTitle: 'How these stats work',
+  legendIntro: 'Every number here comes from the sets you logged. This is what each one measures — and where it stops being reliable.',
+
+  legendE1RMTitle: 'e1RM — estimated max',
+  legendE1RMBody: 'What you could theoretically lift once, extrapolated from a normal set using the Epley formula: 5 reps at 80 kg works out to about 93 kg. The advantage over raw weight: 80 kg × 8 counts for more than 80 kg × 5, even though the weight is identical.',
+
+  legendBestSetTitle: 'One point per session',
+  legendBestSetBody: 'Only the best set of each session counts — the one with the highest e1RM. Warm-up sets and easy finishers therefore never drag the line down.',
+
+  legendRepLimitTitle: 'Why some points are hollow',
+  legendRepLimitBody: 'Above {{limit}} reps the formula runs high — 20 light reps compute to more than a genuine heavy triple. Such sets therefore always lose to a normal set. If one still carries a session, its point is drawn hollow: the value is shown, but read it with care.',
+
+  legendBlocksTitle: 'Training blocks',
+  legendBlocksBody: 'A gap of more than {{gap}} days between sessions starts a new block, and the trend only ever uses the current one. Numbers from before a long break can no longer distort anything.',
+
+  legendRampTitle: 'Coming back',
+  legendRampBody: 'After a break you deliberately restart light. That computes as enormous progress without any being made, so the first {{ramp}} sessions of a block stay out of every metric — they remain visible in the chart, dimmed. If fewer than {{minPoints}} sessions are left afterwards, you get "too few" instead of a number.',
+
+  legendSlopeTitle: 'Robust trend (kg/month)',
+  legendSlopeBody: 'The slope between every possible pair of points is computed and the middle value taken (Theil–Sen), so a single bad day barely moves the result. Pairs less than {{pair}} days apart are ignored — two sessions on consecutive days would otherwise produce absurd projections.',
+
+  legendBlockCompareTitle: 'avg3 vs avg3',
+  legendBlockCompareBody: 'The average of your last three sessions against the average of the three before. Easy to follow and resistant to single outliers, but it only ever looks at the most recent six sessions.',
+
+  legendEwmaTitle: 'Smoothed',
+  legendEwmaBody: 'A rolling average weighted towards recent sessions (time constant {{tau}} days). It weighs by actual elapsed days: a session after three weeks off moves the curve far more than one the next day. The blue line in the chart shows it.',
+
+  legendByWeightTitle: 'Reps per weight',
+  legendByWeightBody: 'The other chart view: one line per weight, showing how many reps you manage with it over time. Useful when you stay on the same weight for a while and the progress lives in the rep count.',
+
+  legendRecentTitle: 'Recent sessions',
+  legendRecentBody: 'Your two most recent sessions with every exercise and set — meant as a look back when deciding what to train today.',
+
+  legendPRTitle: 'Records and volume',
+  legendPRBody: 'Max weight is the heaviest you ever moved, max reps the highest rep count, best vol the strongest single set (weight × reps). Volume is everything added up: each set as weight × reps.',
+
+  legendFootnote: 'The e1RM chart needs both weight and reps. For exercises tracked by time, bodyweight or percent it stays empty — use the "reps per weight" view there.',
+
   // Settings
   settings: 'Settings',
   language: 'Language',
