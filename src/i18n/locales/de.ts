@@ -109,10 +109,16 @@ export default {
   trendTooFew: 'zu wenig',
   trendRampNote: 'Wiedereinstieg ausgeklammert',
 
+  // Chart overlays per metric
+  overlaySlope: '— — Gestrichelt = der angezeigte Trend',
+  overlayBlocks: '━━ Balken = die zwei Dreier-Mittelwerte',
+  overlayEwma: '━━ Blaue Kurve = geglätteter Verlauf',
+  overlayDimmed: 'blasse Punkte zählen nicht mit',
+
   // Legend
   legendButton: 'Legende',
   legendTitle: 'Wie die Statistik rechnet',
-  legendIntro: 'Alle Werte entstehen aus deinen eingetragenen Sätzen. Hier steht, was jede Zahl genau misst — und wo sie an ihre Grenzen kommt.',
+  legendIntro: 'Alle Werte entstehen aus deinen eingetragenen Sätzen. Hier steht, was jede Zahl genau misst — und wo sie an ihre Grenzen kommt.\n\nTipp: Tippe im Chart auf den Trendwert rechts, um zwischen den drei Kennzahlen zu wechseln. Der Chart zeichnet dann jeweils ein, worauf sich die Zahl stützt, und blendet die Punkte ab, die nicht mitzählen.',
 
   legendE1RMTitle: 'e1RM — geschätztes Maximalgewicht',
   legendE1RMBody: 'Was du theoretisch einmal schaffen würdest, hochgerechnet aus einem normalen Satz. Nach der Epley-Formel: 5 Wiederholungen mit 80 kg ergeben rund 93 kg. Der Vorteil gegenüber dem reinen Gewicht: Ein Satz mit 80 kg × 8 zählt mehr als 80 kg × 5, obwohl das Gewicht gleich ist.',

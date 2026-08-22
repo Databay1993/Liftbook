@@ -109,10 +109,16 @@ export default {
   trendTooFew: 'too few',
   trendRampNote: 'ramp-up excluded',
 
+  // Chart overlays per metric
+  overlaySlope: '— — Dashed = the trend shown',
+  overlayBlocks: '━━ Bars = the two three-session averages',
+  overlayEwma: '━━ Blue curve = smoothed course',
+  overlayDimmed: 'faded points do not count',
+
   // Legend
   legendButton: 'Legend',
   legendTitle: 'How these stats work',
-  legendIntro: 'Every number here comes from the sets you logged. This is what each one measures — and where it stops being reliable.',
+  legendIntro: 'Every number here comes from the sets you logged. This is what each one measures — and where it stops being reliable.\n\nTip: tap the trend value on the right of a chart to cycle through the three metrics. The chart then draws what that number rests on and fades the points that do not count.',
 
   legendE1RMTitle: 'e1RM — estimated max',
   legendE1RMBody: 'What you could theoretically lift once, extrapolated from a normal set using the Epley formula: 5 reps at 80 kg works out to about 93 kg. The advantage over raw weight: 80 kg × 8 counts for more than 80 kg × 5, even though the weight is identical.',

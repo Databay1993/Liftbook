@@ -14,7 +14,7 @@ import {
 } from '../storage/database';
 import { buildE1RMSeries, summarizeTrend, E1RMPoint, TrendSummary } from '../lib/analytics';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
-import E1RMChart from '../components/E1RMChart';
+import E1RMChart, { ChartOverlay } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
 import StatsLegend from '../components/StatsLegend';
 
@@ -145,6 +145,39 @@ export default function StatsScreen() {
     }));
   }
 
+  /**
+   * What the chart draws for the selected metric, and which points feed it —
+   * so the badge value can be checked against the picture instead of trusted.
+   */
+  function chartViewFor(ex: ExProgress): { overlay: ChartOverlay; used: Set<number> } {
+    const total = ex.e1rm.length;
+    const range = (from: number) => new Set(
+      Array.from({ length: Math.max(total - from, 0) }, (_, i) => from + i)
+    );
+
+    switch (ex.metric) {
+      case 'slope':
+        return {
+          overlay: { kind: 'slope', line: ex.trend.slopeLine },
+          used: range(ex.trend.basisStart),
+        };
+      case 'blocks': {
+        const groups = ex.trend.groups;
+        const used = groups
+          ? new Set([...groups.previous.points, ...groups.recent.points]
+              .map(p => ex.e1rm.findIndex(q => q.workoutId === p.workoutId))
+              .filter(i => i >= 0))
+          : range(ex.trend.basisStart);
+        return { overlay: { kind: 'blocks', groups }, used };
+      }
+      case 'ewma':
+        return {
+          overlay: { kind: 'ewma', series: ex.trend.ewma },
+          used: range(ex.trend.blockStart),
+        };
+    }
+  }
+
   /** The badge next to the chart title: value, unit and what it means. */
   function describeTrend(trend: TrendSummary, metric: TrendMetric) {
     if (!trend.reliable) {
@@ -257,11 +290,16 @@ export default function StatsScreen() {
                             );
                           })()}
                         </View>
-                        <E1RMChart
-                          points={ex.e1rm}
-                          ewma={ex.metric === 'ewma' ? ex.trend.ewma : undefined}
-                          dimBefore={ex.trend.basisStart}
-                        />
+                        {(() => {
+                          const view = chartViewFor(ex);
+                          return (
+                            <E1RMChart
+                              points={ex.e1rm}
+                              overlay={ex.trend.reliable ? view.overlay : undefined}
+                              usedIndices={ex.trend.reliable ? view.used : undefined}
+                            />
+                          );
+                        })()}
                       </>
                     ) : (
                       <>

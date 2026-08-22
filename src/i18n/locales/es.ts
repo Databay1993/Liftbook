@@ -108,10 +108,16 @@ export default {
   trendTooFew: 'pocos datos',
   trendRampNote: 'reinicio excluido',
 
+  // Chart overlays per metric
+  overlaySlope: '— — Discontinua = la tendencia mostrada',
+  overlayBlocks: '━━ Barras = las dos medias de tres sesiones',
+  overlayEwma: '━━ Curva azul = evolución suavizada',
+  overlayDimmed: 'los puntos atenuados no cuentan',
+
   // Legend
   legendButton: 'Leyenda',
   legendTitle: 'Cómo se calculan las estadísticas',
-  legendIntro: 'Todos los valores salen de las series que registras. Aquí se explica qué mide cada número y dónde deja de ser fiable.',
+  legendIntro: 'Todos los valores salen de las series que registras. Aquí se explica qué mide cada número y dónde deja de ser fiable.\n\nConsejo: toca el valor de tendencia a la derecha del gráfico para alternar entre las tres métricas. El gráfico dibuja entonces en qué se apoya ese número y atenúa los puntos que no cuentan.',
 
   legendE1RMTitle: 'e1RM — máximo estimado',
   legendE1RMBody: 'Lo que teóricamente levantarías una sola vez, extrapolado desde una serie normal con la fórmula de Epley: 5 reps con 80 kg dan unos 93 kg. La ventaja frente al peso puro: 80 kg × 8 vale más que 80 kg × 5, aunque el peso sea el mismo.',

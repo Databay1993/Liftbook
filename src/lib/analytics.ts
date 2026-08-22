@@ -131,7 +131,7 @@ export function splitBlocks(points: E1RMPoint[]): E1RMPoint[][] {
  * Taking the median instead of a least-squares fit means one terrible day
  * cannot drag the result — it shifts many pairs, but the middle one barely.
  */
-export function theilSenPerMonth(points: E1RMPoint[]): number | null {
+function theilSenSlopePerDay(points: E1RMPoint[]): number | null {
   if (points.length < 2) return null;
 
   const slopes: number[] = [];
@@ -147,17 +147,62 @@ export function theilSenPerMonth(points: E1RMPoint[]): number | null {
   }
 
   const usable = slopes.length > 0 ? slopes : fallback;
-  if (usable.length === 0) return null;
-  return median(usable) * 30;
+  return usable.length > 0 ? median(usable) : null;
+}
+
+export function theilSenPerMonth(points: E1RMPoint[]): number | null {
+  const perDay = theilSenSlopePerDay(points);
+  return perDay === null ? null : perDay * 30;
+}
+
+export type TrendLine = {
+  from: { date: string; value: number };
+  to: { date: string; value: number };
+};
+
+/**
+ * The Theil–Sen line as two endpoints, ready to draw. The offset is the median
+ * residual, which keeps the line centred on the points instead of pinned to
+ * whichever one happens to come first.
+ */
+export function theilSenLine(points: E1RMPoint[]): TrendLine | null {
+  const slope = theilSenSlopePerDay(points);
+  if (slope === null || points.length < 2) return null;
+
+  const anchor = points[0].date;
+  const offset = median(points.map(p => p.e1rm - slope * daysBetween(anchor, p.date)));
+  const last = points[points.length - 1];
+
+  return {
+    from: { date: anchor, value: offset },
+    to: { date: last.date, value: offset + slope * daysBetween(anchor, last.date) },
+  };
+}
+
+export type CompareGroups = {
+  previous: { points: E1RMPoint[]; avg: number };
+  recent: { points: E1RMPoint[]; avg: number };
+  delta: number;
+};
+
+/** The two groups behind the Ø3-vs-Ø3 figure, so the chart can show them. */
+export function blockCompareGroups(points: E1RMPoint[], size = 3): CompareGroups | null {
+  if (points.length < size * 2) return null;
+  const avg = (arr: E1RMPoint[]) => arr.reduce((s, p) => s + p.e1rm, 0) / arr.length;
+
+  const recent = points.slice(-size);
+  const previous = points.slice(-size * 2, -size);
+
+  return {
+    previous: { points: previous, avg: avg(previous) },
+    recent: { points: recent, avg: avg(recent) },
+    delta: avg(recent) - avg(previous),
+  };
 }
 
 /** Average of the last `size` sessions minus the average of the `size` before. */
 export function blockCompare(points: E1RMPoint[], size = 3): number | null {
-  if (points.length < size * 2) return null;
-  const avg = (arr: E1RMPoint[]) => arr.reduce((s, p) => s + p.e1rm, 0) / arr.length;
-  const recent = points.slice(-size);
-  const previous = points.slice(-size * 2, -size);
-  return avg(recent) - avg(previous);
+  return blockCompareGroups(points, size)?.delta ?? null;
 }
 
 /**
@@ -187,6 +232,8 @@ export function ewmaSeries(points: E1RMPoint[], tau = EWMA_TAU_DAYS): { date: st
 export type TrendSummary = {
   /** Points the trend was actually computed from. */
   basis: E1RMPoint[];
+  /** Index into the full series where the current training block starts. */
+  blockStart: number;
   /** Index into the full series where the trend basis starts. */
   basisStart: number;
   /** How many opening sessions were held back as ramp-up. */
@@ -194,7 +241,11 @@ export type TrendSummary = {
   /** True once a genuine pause split the series. */
   afterBreak: boolean;
   slopePerMonth: number | null;
+  /** The same slope as two endpoints, for drawing. */
+  slopeLine: TrendLine | null;
   blockDelta: number | null;
+  /** The two averaged groups behind blockDelta. */
+  groups: CompareGroups | null;
   ewma: { date: string; value: number }[];
   ewmaNow: number | null;
   /** False when there is too little to say anything honest. */
@@ -217,14 +268,18 @@ export function summarizeTrend(points: E1RMPoint[]): TrendSummary {
 
   const reliable = basis.length >= MIN_TREND_POINTS;
   const smoothed = ewmaSeries(current);
+  const groups = reliable ? blockCompareGroups(basis) : null;
 
   return {
     basis,
+    blockStart,
     basisStart: blockStart + rampSkipped,
     rampSkipped,
     afterBreak: blocks.length > 1,
     slopePerMonth: reliable ? theilSenPerMonth(basis) : null,
-    blockDelta: reliable ? blockCompare(basis) : null,
+    slopeLine: reliable ? theilSenLine(basis) : null,
+    blockDelta: groups?.delta ?? null,
+    groups,
     ewma: smoothed,
     ewmaNow: smoothed.length > 0 ? smoothed[smoothed.length - 1].value : null,
     reliable,

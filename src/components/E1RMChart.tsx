@@ -4,14 +4,19 @@ import Svg, { Path, Circle, Line, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '../context/ThemeContext';
-import { E1RMPoint, EPLEY_REP_LIMIT, daysBetween } from '../lib/analytics';
+import { E1RMPoint, EPLEY_REP_LIMIT, daysBetween, TrendLine, CompareGroups } from '../lib/analytics';
+
+/** What to draw on top of the raw points, so the shown metric is verifiable. */
+export type ChartOverlay =
+  | { kind: 'slope'; line: TrendLine | null }
+  | { kind: 'blocks'; groups: CompareGroups | null }
+  | { kind: 'ewma'; series: { date: string; value: number }[] };
 
 interface Props {
   points: E1RMPoint[];
-  /** Smoothed curve to overlay; omitted when another metric is shown. */
-  ewma?: { date: string; value: number }[];
-  /** Points before this index are ramp-up and drawn dimmed. */
-  dimBefore?: number;
+  overlay?: ChartOverlay;
+  /** Indices of the points feeding the current metric; the rest are dimmed. */
+  usedIndices?: Set<number>;
 }
 
 const CHART_H = 160;
@@ -28,7 +33,8 @@ const SMOOTH_COLOR = '#3B82F6';
  * Single e1RM line over time — one point per session, showing that session's
  * best set. Tapping a point reveals what the estimate was built from.
  */
-export default function E1RMChart({ points, ewma, dimBefore = 0 }: Props) {
+export default function E1RMChart({ points, overlay, usedIndices }: Props) {
+  const ewma = overlay?.kind === 'ewma' ? overlay.series : undefined;
   const { t } = useTranslation();
   const { colors } = useTheme();
   const [selected, setSelected] = useState<number | null>(null);
@@ -96,6 +102,7 @@ export default function E1RMChart({ points, ewma, dimBefore = 0 }: Props) {
 
   const active = selected !== null ? points[selected] : null;
   const hasOverEstimated = points.some(p => p.overEstimated);
+  const hasDimmed = usedIndices ? points.some((_, i) => !usedIndices.has(i)) : false;
 
   return (
     <TouchableWithoutFeedback onPress={() => setSelected(null)}>
@@ -152,9 +159,45 @@ export default function E1RMChart({ points, ewma, dimBefore = 0 }: Props) {
             />
           )}
 
+          {/* Theil–Sen line — the slope the badge reports, drawn through the data */}
+          {overlay?.kind === 'slope' && overlay.line && (
+            <Line
+              x1={xForDate(overlay.line.from.date)} y1={toY(overlay.line.from.value)}
+              x2={xForDate(overlay.line.to.date)}   y2={toY(overlay.line.to.value)}
+              stroke={SMOOTH_COLOR} strokeWidth={2.5} strokeDasharray="6,4" strokeLinecap="round"
+            />
+          )}
+
+          {/* The two averaged groups — the vertical gap between them is the delta */}
+          {overlay?.kind === 'blocks' && overlay.groups && (() => {
+            const { previous, recent } = overlay.groups;
+            const bar = (group: { points: E1RMPoint[]; avg: number }, color: string) => {
+              const xs = group.points.map(p => xForDate(p.date));
+              return { x1: Math.min(...xs), x2: Math.max(...xs), y: toY(group.avg), color };
+            };
+            const bars = [bar(previous, colors.muted), bar(recent, SMOOTH_COLOR)];
+            return (
+              <>
+                {/* Connector showing the difference between both levels */}
+                <Line
+                  x1={bars[1].x2} y1={bars[0].y}
+                  x2={bars[1].x2} y2={bars[1].y}
+                  stroke={SMOOTH_COLOR} strokeWidth={1.5} strokeDasharray="3,3"
+                />
+                {bars.map((b, i) => (
+                  <Line
+                    key={`bar${i}`}
+                    x1={b.x1 - 6} y1={b.y} x2={b.x2 + 6} y2={b.y}
+                    stroke={b.color} strokeWidth={3} strokeLinecap="round"
+                  />
+                ))}
+              </>
+            );
+          })()}
+
           {points.map((p, i) => {
             const isActive = selected === i;
-            const isRamp = i < dimBefore;
+            const isRamp = usedIndices ? !usedIndices.has(i) : false;
             const color = p.overEstimated ? WARN_COLOR : LINE_COLOR;
             return (
               <React.Fragment key={`${p.workoutId}-${i}`}>
@@ -212,11 +255,20 @@ export default function E1RMChart({ points, ewma, dimBefore = 0 }: Props) {
         )}
 
         {!active && (
-          <Text style={[styles.hint, { color: colors.muted }]}>
-            {dimBefore > 0 ? `${t('trendRampNote')} · ` : ''}
-            {hasOverEstimated ? `○ ${t('e1rmWeakPoint')} · ` : ''}
-            {t('e1rmTapHint')}
-          </Text>
+          <>
+            {overlay && (
+              <Text style={[styles.overlayHint, { color: SMOOTH_COLOR }]}>
+                {overlay.kind === 'slope'  ? t('overlaySlope')
+                 : overlay.kind === 'blocks' ? t('overlayBlocks')
+                 : t('overlayEwma')}
+              </Text>
+            )}
+            <Text style={[styles.hint, { color: colors.muted }]}>
+              {hasDimmed ? `${t('overlayDimmed')} · ` : ''}
+              {hasOverEstimated ? `○ ${t('e1rmWeakPoint')} · ` : ''}
+              {t('e1rmTapHint')}
+            </Text>
+          </>
         )}
       </View>
     </TouchableWithoutFeedback>
@@ -241,5 +293,6 @@ const styles = StyleSheet.create({
   tooltipE1RM: { fontSize: 13, fontWeight: '700' },
   tooltipWarn: { fontSize: 11, marginTop: 2 },
 
-  hint: { fontSize: 10, marginTop: 6, paddingHorizontal: 4 },
+  overlayHint: { fontSize: 11, fontWeight: '600', marginTop: 6, paddingHorizontal: 4 },
+  hint: { fontSize: 10, marginTop: 3, paddingHorizontal: 4 },
 });
