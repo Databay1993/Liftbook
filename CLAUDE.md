@@ -26,6 +26,12 @@ git pull origin <branch> && eas update --branch preview --message "<summary>"
 Then they force-close the app on the phone and reopen it twice — the first
 launch downloads the update, the second shows it.
 
+**After every push, tell the user the build number that push produced.** It
+is the commit count (`git rev-list --count HEAD`), stamped into the bundle by
+`scripts/generate-version.js` at publish time and shown in Settings → About
+as "Version 1.0.0 · Build 36". Naming it lets them check on the phone whether
+the update actually arrived.
+
 Alternatively `.github/workflows/eas-update.yml` publishes the same update
 automatically on every push to the feature branch (and can be triggered by
 hand from the GitHub app). It needs the `EXPO_TOKEN` repository secret,
