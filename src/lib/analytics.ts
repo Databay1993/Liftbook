@@ -504,6 +504,8 @@ export type RepsEstimate = {
   contextMatched: boolean;
   /** The context the estimate came from, for labelling. */
   preceding: string[];
+  /** Date of the session used, when the estimate rests on a single one. */
+  sourceDate: string | null;
 };
 
 /**
@@ -526,19 +528,42 @@ export function estimateReps(
     ? undefined
     : analysis.groups.find(g => g.key === todayKey);
 
-  // Without a matching context, fall back to whichever group has the most data
-  const source = matching ?? analysis.groups[0];
-  const reference = contextReference(source);
-  if (reference === null || !source) return null;
+  const toReps = (reference: number) => {
+    const reps = Math.round((reference / weight - 1) * 30);
+    return reps >= 1 && reps <= 50 ? reps : null;
+  };
 
-  const reps = Math.round((reference / weight - 1) * 30);
-  if (reps < 1 || reps > 50) return null;
+  if (matching) {
+    const reference = contextReference(matching);
+    const reps = reference === null ? null : toReps(reference);
+    if (reps === null) return null;
+    return {
+      reps,
+      sessions: matching.points.length,
+      contextMatched: true,
+      preceding: matching.preceding,
+      sourceDate: null,   // a median of up to three sessions, not one date
+    };
+  }
+
+  // No session was trained in today's order. Averaging a different context
+  // would hide that, so the most recent session is used instead: it is one
+  // concrete workout the number can be traced back to.
+  const latest = analysis.groups
+    .flatMap(g => g.points.map(p => ({ point: p, group: g })))
+    .sort((a, b) => a.point.date.localeCompare(b.point.date))
+    .pop();
+  if (!latest) return null;
+
+  const reps = toReps(latest.point.e1rm);
+  if (reps === null) return null;
 
   return {
     reps,
-    sessions: source.points.length,
-    contextMatched: !!matching,
-    preceding: source.preceding,
+    sessions: 1,
+    contextMatched: false,
+    preceding: latest.group.preceding,
+    sourceDate: latest.point.date,
   };
 }
 

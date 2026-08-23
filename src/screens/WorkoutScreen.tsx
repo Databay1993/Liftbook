@@ -623,10 +623,22 @@ export default function WorkoutScreen({ navigation }: any) {
                                 editable={!s.isDone}
                               />
                               {hint && (
-                                <Text style={[styles.repsHint, !hint.contextMatched && styles.repsHintLoose]}>
-                                  ~{hint.reps} {t('reps')}
-                                  {!hint.contextMatched ? ' *' : ''}
-                                </Text>
+                                <View style={styles.hintWrap}>
+                                  <Text style={[styles.repsHint, !hint.contextMatched && styles.repsHintLoose]}>
+                                    ~{hint.reps} {t('reps')}
+                                  </Text>
+                                  <Text style={styles.hintSource} numberOfLines={1}>
+                                    {hint.contextMatched
+                                      ? (hint.preceding.length === 0
+                                          ? t('hintFresh', { count: hint.sessions })
+                                          : t('hintAfter', { list: hint.preceding.join(' + '), count: hint.sessions }))
+                                      : t('hintLastSession', {
+                                          date: hint.sourceDate
+                                            ? new Date(hint.sourceDate).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
+                                            : '',
+                                        })}
+                                  </Text>
+                                </View>
                               )}
                             </View>
                           </>
@@ -1000,6 +1012,8 @@ function makeStyles(c: Colors) {
       textAlign: 'center',
     },
     repsHintLoose: { opacity: 0.6 },
+    hintWrap: { alignItems: 'center', maxWidth: 96 },
+    hintSource: { fontSize: 8, color: c.muted, marginTop: 1, textAlign: 'center' },
     checkBtn: { width: 38, height: 38, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
     checkBtnDone: { backgroundColor: c.accent, borderColor: c.accent },
     checkBtnText: { color: c.muted, fontSize: 16, fontWeight: '700' },

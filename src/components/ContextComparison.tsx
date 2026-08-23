@@ -95,6 +95,11 @@ export default function ContextComparison({ analysis, muscleGroup, positions }: 
                     context: label(current.preceding),
                     value: (currentTrend.changeOverSpan ?? 0).toFixed(1),
                     days: currentTrend.spanDays,
+                    // What the extrapolation would have claimed, so the reason
+                    // for not showing it is concrete rather than abstract
+                    monthly: (
+                      ((currentTrend.changeOverSpan ?? 0) / Math.max(currentTrend.spanDays, 1)) * 30
+                    ).toFixed(1),
                   })
                 : t('contextTrend', {
                     context: label(current.preceding),

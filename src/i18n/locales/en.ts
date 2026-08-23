@@ -63,6 +63,10 @@ export default {
   rightSide: 'R',
   addPair: '+ Pair (L+R)',
 
+  hintFresh: 'fresh · avg of {{count}}',
+  hintAfter: 'after {{list}} · avg {{count}}',
+  hintLastSession: 'last session {{date}}',
+
   // Set timer
   timerStart: '▶',
   timerStop: '⏹',
@@ -129,7 +133,7 @@ export default {
   contextAfter: 'After',
   contextVsBest: 'vs best group',
   contextTrend: 'In the current context ({{context}}): {{value}} kg/month',
-  contextChange: 'In the current context ({{context}}): {{value}} kg over {{days}} days. Too short for a monthly figure — that would multiply every wobble.',
+  contextChange: 'In the current context ({{context}}): {{value}} kg over {{days}} days. Scaled to a month that would read {{monthly}} kg — but you did not measure that long. The shorter the window, the more the extrapolation magnifies each single wobble.',
   contextTooFew: 'Only {{count}} comparable sessions in "{{context}}" — too few for a trend. Train this order more often and it becomes meaningful.',
   contextNoGroup: 'This exercise has no muscle group yet. Assign one under Settings → Manage Exercises to enable the comparison.',
   contextOrderInferred: 'For older sessions the order was inferred from save order — usually right, but not guaranteed.',

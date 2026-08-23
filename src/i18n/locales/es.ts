@@ -46,6 +46,10 @@ export default {
   rightSide: 'R',
   addPair: '+ Par (L+D)',
 
+  hintFresh: 'en fresco · media de {{count}}',
+  hintAfter: 'tras {{list}} · media {{count}}',
+  hintLastSession: 'última sesión {{date}}',
+
   // Set timer
   timerStart: '▶',
   timerStop: '⏹',
@@ -128,7 +132,7 @@ export default {
   contextAfter: 'Después de',
   contextVsBest: 'vs. mejor grupo',
   contextTrend: 'En el contexto actual ({{context}}): {{value}} kg/mes',
-  contextChange: 'En el contexto actual ({{context}}): {{value}} kg en {{days}} días. Demasiado corto para una cifra mensual — multiplicaría cualquier oscilación.',
+  contextChange: 'En el contexto actual ({{context}}): {{value}} kg en {{days}} días. Escalado a un mes serían {{monthly}} kg — pero no has medido tanto tiempo. Cuanto más corto el periodo, más amplía la extrapolación cada oscilación.',
   contextTooFew: 'Solo {{count}} sesiones comparables en «{{context}}» — pocas para una tendencia. Repite este orden más veces y ganará sentido.',
   contextNoGroup: 'Este ejercicio aún no tiene grupo muscular. Asígnalo en Ajustes → Gestionar ejercicios para poder comparar.',
   contextOrderInferred: 'En sesiones antiguas el orden se dedujo del orden de guardado — suele ser correcto, pero no está garantizado.',
