@@ -38,7 +38,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
 
   // The user's own exercises
   'Brustpresse':      'chest,triceps',
-  'Bulgarische Kniebeuge':   'quads,glutes',
+  'Bulgarian Split Squat': 'quads,glutes',
   'Butterfly':         'chest',
   'Beinheben am Barren':      'core',
   'Copenhagen Plank':  'core,adductors',
@@ -49,12 +49,12 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Beinstrecker':     'quads',
   'Beinbeuger liegend':           'hamstrings',
   'Reverse Butterfly': 'shoulders',
-  'Rudern':            'back,biceps',
+  'Kabelrudern eng':   'back,biceps',
   'Rückenstrecker':   'lower_back',
   'SZ-Curl':         'biceps',
   'Beinbeuger sitzend':   'hamstrings',
   'Seitheben':         'shoulders',
-  'Kniebeuge ohne Gewicht': 'quads,glutes',
+  'Kniebeugemaschine': 'quads,glutes',
   'Wadenheben exzentrisch':  'calves',
 };
 
@@ -283,6 +283,44 @@ export async function initDb() {
     await db.runAsync(
       "UPDATE exercises SET muscle_group = 'chest,shoulders,triceps' WHERE name = 'Bench Press'",
     );
+  });
+
+  await runOnce(db, 'rename-2026-08-2', async () => {
+    const renames: Record<string, string> = {
+      'Rudern':                 'Kabelrudern eng',
+      'Bulgarische Kniebeuge':  'Bulgarian Split Squat',
+      'Kniebeuge ohne Gewicht': 'Kniebeugemaschine',
+      'Air Squat':              'Kniebeugemaschine',   // in case the earlier rename never ran
+    };
+    for (const [from, to] of Object.entries(renames)) {
+      try { await renameExercise(from, to); } catch { /* name taken */ }
+    }
+    // A hydraulic machine is set in percent, not in kilos
+    await db.runAsync(
+      "UPDATE exercises SET tracking_type = 'percent' WHERE name = 'Kniebeugemaschine'",
+    );
+  });
+
+  // Exercises that already carried a value never received the refined
+  // defaults, since seeding only fills empty fields. Where that value is
+  // exactly what the old single-group expansion produced, it was never a
+  // choice the user made — squats reading "quads + hamstrings + glutes" and
+  // tricep pushdowns reading "biceps + triceps" both come from there.
+  await runOnce(db, 'groups-legacy-fix-1', async () => {
+    const fromLegacy = new Set([
+      'quads,hamstrings,glutes',   // was 'legs'
+      'biceps,triceps',            // was 'arms'
+      'chest', 'back', 'shoulders', 'core', 'cardio', 'other',
+    ]);
+    for (const [name, intended] of Object.entries(DEFAULT_MUSCLE_GROUPS)) {
+      const row = await db.getFirstAsync<{ muscle_group: string | null }>(
+        'SELECT muscle_group FROM exercises WHERE name = ?', name,
+      );
+      const current = row?.muscle_group ?? null;
+      if (current && current !== intended && fromLegacy.has(current)) {
+        await db.runAsync('UPDATE exercises SET muscle_group = ? WHERE name = ?', intended, name);
+      }
+    }
   });
 
   // Migration: add workout_id tracking to workouts (already exists)
