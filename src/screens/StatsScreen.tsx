@@ -20,7 +20,7 @@ import ContextComparison from '../components/ContextComparison';
 import { exerciseLabel } from '../lib/exerciseName';
 import { loadSetRule } from '../lib/setRule';
 import ProgressChartByWeight from '../components/ProgressChartByWeight';
-import E1RMChart, { ChartOverlay } from '../components/E1RMChart';
+import E1RMChart, { ChartOverlay, ChartSeries } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
 import StatsLegend from '../components/StatsLegend';
 
@@ -211,6 +211,35 @@ export default function StatsScreen() {
     }
   }
 
+  /** At most this many lines; beyond that the chart becomes unreadable. */
+  const MAX_SERIES = 4;
+
+  /**
+   * One line per fatigue context. Training the same order most of the time
+   * means "after pull-ups" is the normal case rather than an exception, so
+   * both belong on screen instead of one being dimmed away.
+   */
+  function seriesFor(ex: ExProgress): ChartSeries[] | undefined {
+    const groups = ex.contexts.groups.filter(g => g.points.length > 0);
+    if (groups.length < 2) return undefined;   // one line is the plain chart
+
+    // Current context first so it gets the leading colour
+    const ordered = [...groups].sort((a, b) => {
+      if ((a.key === ex.contexts.currentKey) !== (b.key === ex.contexts.currentKey)) {
+        return a.key === ex.contexts.currentKey ? -1 : 1;
+      }
+      return b.points.length - a.points.length;
+    });
+
+    return ordered.slice(0, MAX_SERIES).map(g => ({
+      label: g.preceding.length === 0
+        ? t('contextFresh')
+        : `${t('contextAfter')} ${g.preceding.join(' + ')}`,
+      points: g.points,
+      current: g.key === ex.contexts.currentKey,
+    }));
+  }
+
   /** The badge next to the chart title: value, unit and what it means. */
   function describeTrend(trend: TrendSummary, metric: TrendMetric) {
     if (!trend.reliable) {
@@ -350,6 +379,7 @@ export default function StatsScreen() {
                           return (
                             <E1RMChart
                               points={ex.e1rm}
+                              series={seriesFor(ex)}
                               overlay={ex.trend.reliable ? view.overlay : undefined}
                               usedIndices={ex.trend.reliable ? view.used : undefined}
                             />

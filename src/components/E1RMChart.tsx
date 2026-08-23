@@ -12,8 +12,18 @@ export type ChartOverlay =
   | { kind: 'blocks'; groups: CompareGroups | null }
   | { kind: 'ewma'; series: { date: string; value: number }[] };
 
+/** One line per fatigue context, so comparable sessions stay visually together. */
+export type ChartSeries = {
+  label: string;
+  points: E1RMPoint[];
+  /** The context the most recent session belongs to. */
+  current: boolean;
+};
+
 interface Props {
   points: E1RMPoint[];
+  /** Draw a separate line per context instead of one line through everything. */
+  series?: ChartSeries[];
   overlay?: ChartOverlay;
   /** Indices of the points feeding the current metric; the rest are dimmed. */
   usedIndices?: Set<number>;
@@ -29,11 +39,14 @@ const LINE_COLOR   = '#22C55E';
 const WARN_COLOR   = '#F97316';
 const SMOOTH_COLOR = '#3B82F6';
 
+/** Distinct on both themes; the current context always gets the first. */
+const SERIES_COLORS = ['#22C55E', '#3B82F6', '#A855F7', '#F43F5E'];
+
 /**
  * Single e1RM line over time — one point per session, showing that session's
  * best set. Tapping a point reveals what the estimate was built from.
  */
-export default function E1RMChart({ points, overlay, usedIndices }: Props) {
+export default function E1RMChart({ points, series, overlay, usedIndices }: Props) {
   const ewma = overlay?.kind === 'ewma' ? overlay.series : undefined;
   const { t } = useTranslation();
   const { colors } = useTheme();
@@ -100,9 +113,15 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
   const xLabelIdxs = [0, Math.floor((points.length - 1) / 2), points.length - 1]
     .filter((v, i, a) => a.indexOf(v) === i);
 
+  // Which line a point belongs to, so its dot matches its series colour
+  const seriesOf = new Map<number, number>();
+  series?.forEach((serie, i) => serie.points.forEach(p => seriesOf.set(p.workoutId, i)));
+  const colorFor = (p: E1RMPoint) =>
+    p.overEstimated ? WARN_COLOR : SERIES_COLORS[seriesOf.get(p.workoutId) ?? 0];
+
   const active = selected !== null ? points[selected] : null;
   const hasOverEstimated = points.some(p => p.overEstimated);
-  const hasDimmed = usedIndices ? points.some((_, i) => !usedIndices.has(i)) : false;
+  const hasDimmed = !series && usedIndices ? points.some((_, i) => !usedIndices.has(i)) : false;
 
   return (
     <TouchableWithoutFeedback onPress={() => setSelected(null)}>
@@ -137,7 +156,7 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
             </SvgText>
           ))}
 
-          {points.length > 1 && (
+          {!series && points.length > 1 && (
             <Path
               d={linePath}
               stroke={LINE_COLOR}
@@ -147,6 +166,22 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
               strokeLinecap="round" strokeLinejoin="round"
             />
           )}
+
+          {/* One line per context — the same exercise under different
+              pre-fatigue is two different things and belongs on two lines */}
+          {series?.map((serie, si) => serie.points.length > 1 && (
+            <Path
+              key={`s${si}`}
+              d={serie.points
+                .map((p, i) => `${i === 0 ? 'M' : 'L'} ${xForDate(p.date).toFixed(1)} ${toY(p.e1rm).toFixed(1)}`)
+                .join(' ')}
+              stroke={SERIES_COLORS[si]}
+              strokeWidth={serie.current ? 2.5 : 2}
+              strokeOpacity={ewma ? 0.35 : serie.current ? 1 : 0.75}
+              fill="none"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+          ))}
 
           {/* Smoothed curve sits on top of the raw line when shown */}
           {ewma && ewma.length > 1 && (
@@ -197,8 +232,10 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
 
           {points.map((p, i) => {
             const isActive = selected === i;
-            const isRamp = usedIndices ? !usedIndices.has(i) : false;
-            const color = p.overEstimated ? WARN_COLOR : LINE_COLOR;
+            // With several lines the colours already say which is which;
+            // dimming on top of that only makes the picture harder to read
+            const isRamp = !series && usedIndices ? !usedIndices.has(i) : false;
+            const color = colorFor(p);
             return (
               <React.Fragment key={`${p.workoutId}-${i}`}>
                 {/* Generous invisible hit area — the visible dot is too small to tap */}
@@ -221,7 +258,7 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
           })}
 
           {/* Value above the newest point, unless a point is selected */}
-          {selected === null && (
+          {selected === null && !series && (
             <SvgText
               x={toX(points.length - 1)}
               y={toY(points[points.length - 1].e1rm) - 12}
@@ -251,6 +288,23 @@ export default function E1RMChart({ points, overlay, usedIndices }: Props) {
                 ⚠ {t('e1rmOverestimated', { limit: EPLEY_REP_LIMIT })}
               </Text>
             )}
+          </View>
+        )}
+
+        {series && series.length > 1 && (
+          <View style={styles.legend}>
+            {series.map((serie, si) => (
+              <View key={`l${si}`} style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: SERIES_COLORS[si] }]} />
+                <Text style={[
+                  styles.legendTxt,
+                  { color: colors.muted },
+                  serie.current && { color: SERIES_COLORS[si], fontWeight: '700' },
+                ]}>
+                  {serie.label} ({serie.points.length})
+                </Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -295,4 +349,9 @@ const styles = StyleSheet.create({
 
   overlayHint: { fontSize: 11, fontWeight: '600', marginTop: 6, paddingHorizontal: 4 },
   hint: { fontSize: 10, marginTop: 3, paddingHorizontal: 4 },
+
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 4, marginTop: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 9, height: 9, borderRadius: 5 },
+  legendTxt: { fontSize: 11 },
 });
