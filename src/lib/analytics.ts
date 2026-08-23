@@ -445,6 +445,45 @@ export function groupAverage(group: ContextGroup): number {
   return group.points.reduce((s, p) => s + p.e1rm, 0) / group.points.length;
 }
 
+// ── Where an exercise sat in the workout ───────────────────────
+
+export type PositionPoint = {
+  workoutId: number;
+  date: string;
+  /** 1-based position among that workout's exercises. */
+  position: number;
+  total: number;
+};
+
+/** The position an exercise held in each session, oldest first. */
+export function positionSeries(
+  compositions: WorkoutComposition[],
+  exerciseName: string,
+): PositionPoint[] {
+  return compositions
+    .map(c => {
+      const index = c.exercises.findIndex(e => e.name === exerciseName);
+      if (index < 0) return null;
+      return {
+        workoutId: c.workoutId,
+        date: c.date,
+        position: index + 1,
+        total: c.exercises.length,
+      };
+    })
+    .filter((p): p is PositionPoint => p !== null)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** How often each position occurred, most frequent first. */
+export function positionCounts(points: PositionPoint[]): { position: number; count: number }[] {
+  const counts = new Map<number, number>();
+  for (const p of points) counts.set(p.position, (counts.get(p.position) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([position, count]) => ({ position, count }))
+    .sort((a, b) => b.count - a.count || a.position - b.position);
+}
+
 // ── Predicting what a weight should be good for ────────────────
 
 /**

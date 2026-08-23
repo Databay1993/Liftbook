@@ -68,6 +68,7 @@ export default {
   timerStop: '⏹',
 
   // History
+  ofTotal: 'of {{total}}',
   history: 'History',
   noHistory: 'No workouts yet.\nStart your first session!',
 
@@ -119,6 +120,8 @@ export default {
   overlayDimmed: 'faded points do not count',
 
   // Context comparison
+  positionTitle: 'Position in the workout',
+  positionUsual: 'Usually exercise #{{position}} ({{count}} of {{total}} sessions)',
   chartContext: 'Compare',
   chartContextHint: 'Only compare sessions with the same pre-fatigue',
   contextIntro: 'Grouped by what worked the same muscle group before this exercise. Only sessions in the same group compare fairly.',

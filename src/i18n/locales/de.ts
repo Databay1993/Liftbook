@@ -68,6 +68,7 @@ export default {
   timerStop: '⏹',
 
   // History
+  ofTotal: 'von {{total}}',
   history: 'Verlauf',
   noHistory: 'Noch kein Workout.\nStarte dein erstes Training!',
 
@@ -119,6 +120,8 @@ export default {
   overlayDimmed: 'blasse Punkte zählen nicht mit',
 
   // Context comparison
+  positionTitle: 'Stelle im Training',
+  positionUsual: 'Meistens als {{position}}. Übung ({{count}} von {{total}} Trainings)',
   chartContext: 'Vergleich',
   chartContextHint: 'Nur Trainings mit gleicher Vorermüdung vergleichen',
   contextIntro: 'Gruppiert nach dem, was vor dieser Übung dieselbe Muskelgruppe belastet hat. Nur Trainings derselben Gruppe sind fair vergleichbar.',

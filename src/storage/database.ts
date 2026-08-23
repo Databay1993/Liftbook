@@ -686,6 +686,47 @@ export async function getWorkoutCompositions(exerciseName: string): Promise<Work
   return [...byWorkout.values()];
 }
 
+// ── Position of an exercise within its workout ────────────────
+
+export type ExercisePosition = {
+  workoutId: number;
+  exerciseName: string;
+  /** 1-based position among the exercises of that workout. */
+  position: number;
+  /** How many exercises the workout had, so "3 of 5" can be shown. */
+  total: number;
+};
+
+/**
+ * Where each exercise sat in each workout. Sessions logged before the order
+ * was recorded fall back to insertion order, the same rule the comparison
+ * uses, so both views tell the same story.
+ */
+export async function getExercisePositions(): Promise<ExercisePosition[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{ workoutId: number; name: string }>(`
+    SELECT w.id as workoutId, s.exercise_name as name
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    GROUP BY w.id, s.exercise_name
+    ORDER BY w.id ASC, COALESCE(MIN(s.exercise_order), 999999) ASC, MIN(s.id) ASC
+  `);
+
+  const byWorkout = new Map<number, string[]>();
+  for (const r of rows) {
+    if (!byWorkout.has(r.workoutId)) byWorkout.set(r.workoutId, []);
+    byWorkout.get(r.workoutId)!.push(r.name);
+  }
+
+  const out: ExercisePosition[] = [];
+  for (const [workoutId, names] of byWorkout) {
+    names.forEach((exerciseName, i) => {
+      out.push({ workoutId, exerciseName, position: i + 1, total: names.length });
+    });
+  }
+  return out;
+}
+
 // ── Recent sessions (last N workouts with full set detail) ────
 
 export type SessionSet = { reps: string; weight: string; side: string | null };

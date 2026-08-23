@@ -5,12 +5,15 @@ import { useTranslation } from 'react-i18next';
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import {
-  ContextAnalysis, groupAverage, summarizeTrend, MIN_TREND_POINTS,
+  ContextAnalysis, groupAverage, summarizeTrend, MIN_TREND_POINTS, PositionPoint,
 } from '../lib/analytics';
+import PositionTimeline from './PositionTimeline';
 
 interface Props {
   analysis: ContextAnalysis;
   muscleGroup: string | null;
+  /** Where the exercise sat in each workout, drawn above the grouping. */
+  positions?: PositionPoint[];
 }
 
 /**
@@ -18,15 +21,18 @@ interface Props {
  * equally fresh — rowing after pull-ups against rowing after pull-ups, not
  * against rowing done first.
  */
-export default function ContextComparison({ analysis, muscleGroup }: Props) {
+export default function ContextComparison({ analysis, muscleGroup, positions }: Props) {
   const { t } = useTranslation();
   const { colors } = useTheme();
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   if (!muscleGroup) {
     return (
-      <View style={styles.notice}>
-        <Text style={styles.noticeTxt}>{t('contextNoGroup')}</Text>
+      <View style={styles.wrap}>
+        {positions && <PositionTimeline points={positions} />}
+        <View style={styles.notice}>
+          <Text style={styles.noticeTxt}>{t('contextNoGroup')}</Text>
+        </View>
       </View>
     );
   }
@@ -46,6 +52,7 @@ export default function ContextComparison({ analysis, muscleGroup }: Props) {
 
   return (
     <View style={styles.wrap}>
+      {positions && <PositionTimeline points={positions} />}
       <Text style={styles.intro}>{t('contextIntro')}</Text>
 
       {groups.map((group, i) => {

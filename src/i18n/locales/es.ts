@@ -67,6 +67,7 @@ export default {
   custom: 'propio',
 
   // History
+  ofTotal: 'de {{total}}',
   history: 'Historial',
   noHistory: 'Sin entrenamientos aún.\n¡Comienza tu primera sesión!',
 
@@ -118,6 +119,8 @@ export default {
   overlayDimmed: 'los puntos atenuados no cuentan',
 
   // Context comparison
+  positionTitle: 'Posición en el entrenamiento',
+  positionUsual: 'Normalmente el ejercicio n.º {{position}} ({{count}} de {{total}} sesiones)',
   chartContext: 'Comparar',
   chartContextHint: 'Comparar solo sesiones con la misma fatiga previa',
   contextIntro: 'Agrupado según qué trabajó el mismo grupo muscular antes de este ejercicio. Solo las sesiones del mismo grupo se comparan de forma justa.',

@@ -13,8 +13,8 @@ import {
   getExerciseSets, getAllExercises, getWorkoutCompositions,
 } from '../storage/database';
 import {
-  buildE1RMSeries, summarizeTrend, analyzeContexts,
-  E1RMPoint, TrendSummary, ContextAnalysis, SetRule,
+  buildE1RMSeries, summarizeTrend, analyzeContexts, positionSeries,
+  E1RMPoint, TrendSummary, ContextAnalysis, SetRule, PositionPoint,
 } from '../lib/analytics';
 import ContextComparison from '../components/ContextComparison';
 import { exerciseLabel } from '../lib/exerciseName';
@@ -41,6 +41,7 @@ type ExProgress = {
   /** True when sessions were left out because they are not comparable. */
   trendFiltered: boolean;
   muscleGroup: string | null;
+  positions: PositionPoint[];
   expanded: boolean;
   mode: ChartMode;
   metric: TrendMetric;
@@ -150,6 +151,7 @@ export default function StatsScreen() {
           trendPreceding: filtered ? currentGroup!.preceding : null,
           trendFiltered: filtered && currentGroup!.points.length < e1rm.length,
           muscleGroup,
+          positions: positionSeries(compositions, name),
           expanded: false,
           mode: 'e1rm' as ChartMode,
           metric: 'slope' as TrendMetric,
@@ -394,7 +396,11 @@ export default function StatsScreen() {
                     ) : (
                       <>
                         <Text style={styles.chartLabel}>{t('chartContextHint')}</Text>
-                        <ContextComparison analysis={ex.contexts} muscleGroup={ex.muscleGroup} />
+                        <ContextComparison
+                          analysis={ex.contexts}
+                          muscleGroup={ex.muscleGroup}
+                          positions={ex.positions}
+                        />
                       </>
                     )}
                   </View>
