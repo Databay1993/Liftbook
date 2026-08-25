@@ -125,8 +125,57 @@ export default function WorkoutScreen({ navigation }: any) {
     if (activeWorkout) {
       // Resuming shows the plan, not eight open cards
       setExercises((activeWorkout.exercises as WExercise[]).map(e => ({ ...e, collapsed: true })));
+      hydrateExercises(activeWorkout.exercises.map(e => e.name));
     }
   }, [activeWorkout?.workoutId]);
+
+  /**
+   * Fills in everything an exercise needs beyond its name.
+   *
+   * Starting from a plan creates entries that carry nothing but the name, so
+   * without this they would show as never trained, default to weight+reps
+   * whatever they actually track, and lose their rest time and L/R setting.
+   */
+  async function hydrateExercises(names: string[]) {
+    if (names.length === 0) return;
+    const [all, rule] = await Promise.all([getAllExercises(), loadSetRule()]);
+    setAllExercises(all);
+
+    for (const name of names) {
+      const info = all.find(e => e.name === name);
+      const [last, sets, compositions] = await Promise.all([
+        getLastSessionForExercise(name),
+        getExerciseSets(name),
+        getWorkoutCompositions(name),
+      ]);
+
+      setLastSessions(prev => ({ ...prev, [name]: last }));
+      setContexts(prev => ({
+        ...prev,
+        [name]: analyzeContexts(buildE1RMSeries(sets, rule), compositions, name, info?.muscleGroup ?? null),
+      }));
+
+      setExercises(prev => prev.map(ex => {
+        if (ex.name !== name) return ex;
+        return {
+          ...ex,
+          trackingType: (info?.trackingType ?? ex.trackingType) as TrackingType,
+          restTime: info?.restTime ?? ex.restTime ?? null,
+          hasSides: info?.hasSides ?? ex.hasSides ?? false,
+          // Only where nothing is logged yet — coming back to a workout must
+          // never overwrite sets already entered
+          sets: ex.sets.length === 0 && last
+            ? last.sets.map(s => ({
+                reps: s.reps,
+                weight: s.weight,
+                isDone: false,
+                side: s.side as 'left' | 'right' | undefined,
+              }))
+            : ex.sets,
+        };
+      }));
+    }
+  }
 
   async function loadExercises() {
     setAllExercises(await getAllExercises());
