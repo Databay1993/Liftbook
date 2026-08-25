@@ -33,8 +33,8 @@ const DEFAULT_REST = 90;
 
 // ── Types ──────────────────────────────────────────────────────
 interface WSet {
-  reps: string;            // reps or duration-sec or percent
-  weight: string;          // kg or km
+  reps: string;            // reps, or duration in seconds
+  weight: string;          // kg, km, or percent — whatever the load axis is
   isDone: boolean;
   side?: 'left' | 'right';
   timerRunning?: boolean;
@@ -270,7 +270,7 @@ export default function WorkoutScreen({ navigation }: any) {
       : ex.trackingType === 'time'
       ? formatDuration(first.reps)
       : ex.trackingType === 'percent'
-      ? `${first.reps}%`
+      ? `${first.weight}% × ${first.reps}`
       : `${first.reps}`;
     return `${filled.length} ${t('sets')} · ${detail}${done > 0 ? ` · ${done} ✓` : ''}`;
   }
@@ -853,19 +853,30 @@ export default function WorkoutScreen({ navigation }: any) {
                         )}
 
                         {ex.trackingType === 'percent' && (
-                          <View style={styles.percentRow}>
+                          <>
+                            <View style={styles.percentRow}>
+                              <TextInput
+                                style={[styles.setInput, styles.setInputPercent, s.isDone && styles.setInputDone]}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor={colors.muted}
+                                value={s.weight}
+                                onChangeText={v => updateSet(ex.name, idx, 'weight', v.replace(/[^0-9]/g, '').slice(0, 3))}
+                                editable={!s.isDone}
+                                maxLength={3}
+                              />
+                              <Text style={[styles.percentSymbol, s.isDone && { color: colors.accent }]}>%</Text>
+                            </View>
                             <TextInput
-                              style={[styles.setInput, styles.setInputWide, s.isDone && styles.setInputDone]}
+                              style={[styles.setInput, s.isDone && styles.setInputDone]}
                               keyboardType="numeric"
-                              placeholder="0"
+                              placeholder={t('reps')}
                               placeholderTextColor={colors.muted}
                               value={s.reps}
-                              onChangeText={v => updateSet(ex.name, idx, 'reps', v.replace(/[^0-9]/g, '').slice(0, 3))}
+                              onChangeText={v => updateSet(ex.name, idx, 'reps', v)}
                               editable={!s.isDone}
-                              maxLength={3}
                             />
-                            <Text style={[styles.percentSymbol, s.isDone && { color: colors.accent }]}>%</Text>
-                          </View>
+                          </>
                         )}
 
                         {/* Set done toggle */}
@@ -1154,6 +1165,7 @@ function makeStyles(c: Colors) {
       textAlign: 'center',
     },
     setInputWide: { width: 110 },
+    setInputPercent: { width: 58 },
     setInputDone: { borderColor: c.accentBorder, backgroundColor: c.accentBg, color: c.accent },
     repsHint: {
       fontSize: 11,

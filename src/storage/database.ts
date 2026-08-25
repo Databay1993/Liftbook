@@ -319,6 +319,17 @@ export async function initDb() {
   // exactly what the old single-group expansion produced, it was never a
   // choice the user made — squats reading "quads + hamstrings + glutes" and
   // tricep pushdowns reading "biceps + triceps" both come from there.
+  // Percent used to occupy the reps column, which left no room for a rep
+  // count at all. It now sits where the weight goes, so a percent exercise
+  // records both numbers exactly like a weighted one.
+  await runOnce(db, 'percent-reps-1', async () => {
+    await db.runAsync(`
+      UPDATE sets SET weight = reps, reps = ''
+      WHERE weight = ''
+        AND exercise_name IN (SELECT name FROM exercises WHERE tracking_type = 'percent')
+    `);
+  });
+
   await runOnce(db, 'groups-legacy-fix-1', async () => {
     const fromLegacy = new Set([
       'quads,hamstrings,glutes',   // was 'legs'

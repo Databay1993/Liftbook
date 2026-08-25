@@ -86,7 +86,7 @@ export function buildE1RMSeries(rows: ExerciseSetRow[], rule: SetRule = 'first')
     const weight = parseFloat(row.weight);
     const reps = parseFloat(row.reps);
     const e1rm = epleyE1RM(weight, reps);
-    if (e1rm <= 0) continue;   // bodyweight, time and percent sets drop out here
+    if (e1rm <= 0) continue;   // bodyweight and time sets have no weight to work with
 
     const candidate: E1RMPoint = {
       workoutId: row.workoutId,
@@ -594,7 +594,7 @@ export function formatSet(set: SessionSet, trackingType: string): string {
     case 'distance_time':
       return `${prefix}${set.weight}km · ${formatDuration(set.reps)}`;
     case 'percent':
-      return `${prefix}${set.reps}%`;
+      return `${prefix}${set.weight}% × ${set.reps}`;
     default:
       return `${prefix}${set.weight}kg × ${set.reps}`;
   }
@@ -605,8 +605,13 @@ export function summarizeSets(sets: SessionSet[], trackingType: string): string 
   return sets.map(s => formatSet(s, trackingType)).join(', ');
 }
 
-/** Total moved weight of a set list; 0 for exercises without a weight. */
-export function sessionVolume(sets: SessionSet[]): number {
+/**
+ * Total weight moved. Only exercises actually loaded in kilos count — a
+ * percentage times reps, or kilometres times seconds, is not a volume and
+ * would quietly inflate the total.
+ */
+export function sessionVolume(sets: SessionSet[], trackingType = 'weight_reps'): number {
+  if (trackingType !== 'weight_reps') return 0;
   return sets.reduce((sum, s) => {
     const reps = parseFloat(s.reps) || 0;
     const weight = parseFloat(s.weight) || 0;

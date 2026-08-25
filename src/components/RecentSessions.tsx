@@ -52,7 +52,7 @@ export default function RecentSessions({ sessions }: Props) {
           </View>
 
           {session.exercises.map(ex => {
-            const vol = sessionVolume(ex.sets);
+            const vol = sessionVolume(ex.sets, ex.trackingType);
             return (
               <View key={ex.name} style={styles.exRow}>
                 <View style={styles.exHeader}>

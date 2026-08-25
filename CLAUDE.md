@@ -66,13 +66,17 @@ Constraints this implies:
 `sets.reps` and `sets.weight` are TEXT and their meaning depends on the
 exercise's `tracking_type`:
 
-| tracking_type   | reps            | weight |
-|-----------------|-----------------|--------|
-| `weight_reps`   | rep count       | kg     |
-| `bodyweight`    | rep count       | —      |
-| `time`          | duration in sec | —      |
-| `distance_time` | duration in sec | km     |
-| `percent`       | percent 0–100   | —      |
+| tracking_type   | reps            | weight       |
+|-----------------|-----------------|--------------|
+| `weight_reps`   | rep count       | kg           |
+| `bodyweight`    | rep count       | —            |
+| `time`          | duration in sec | —            |
+| `distance_time` | duration in sec | km           |
+| `percent`       | rep count       | percent      |
+
+`weight` is the load axis whatever its unit, so `percent` behaves like
+`weight_reps` and keeps working in e1RM, trends and comparison. Volume is
+only summed for `weight_reps` — a percentage times reps is not kilos.
 
 Exercises with `has_sides = 1` log each side separately; `sets.side` is
 `'left'`, `'right'`, or NULL.

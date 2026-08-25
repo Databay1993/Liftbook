@@ -66,14 +66,26 @@ export default function StatsScreen() {
 
   async function load() {
     const setRule = await loadSetRule();
-    const [rows, recent] = await Promise.all([getHistory(), getRecentWorkouts(2)]);
+    const [rows, recent, allExercises] = await Promise.all([
+      getHistory(), getRecentWorkouts(2), getAllExercises(),
+    ]);
     setRecentSessions(recent);
 
     if (rows.length === 0) return;
 
+    // Volume only means something where the load is a weight. A percentage or
+    // a distance multiplied by reps is not kilos and would inflate the total.
+    const byWeight = new Set(
+      allExercises.filter(e => e.trackingType === 'weight_reps').map(e => e.name),
+    );
+    const liftsWeight = (name: string) => byWeight.has(name);
+
     // Totals
     const workoutIds = new Set(rows.map(r => r.workoutId));
-    const totalVol = rows.reduce((sum, r) => sum + (parseFloat(r.reps) * parseFloat(r.weight) || 0), 0);
+    const totalVol = rows.reduce(
+      (sum, r) => sum + (liftsWeight(r.exerciseName) ? parseFloat(r.reps) * parseFloat(r.weight) || 0 : 0),
+      0,
+    );
     setTotals({ workouts: workoutIds.size, sets: rows.length, volume: Math.round(totalVol) });
 
     // Per-exercise stats
@@ -86,13 +98,14 @@ export default function StatsScreen() {
 
     const stats: ExStats[] = Object.entries(exMap).map(([name, data]) => {
       let maxWeight = 0, maxReps = 0, bestVol = 0, totalVol = 0;
+      const weighted = liftsWeight(name);
       for (const r of data.rows) {
         const w = parseFloat(r.weight) || 0;
         const reps = parseFloat(r.reps) || 0;
         if (w > maxWeight) maxWeight = w;
         if (reps > maxReps) maxReps = reps;
-        if (w * reps > bestVol) bestVol = w * reps;
-        totalVol += w * reps;
+        if (weighted && w * reps > bestVol) bestVol = w * reps;
+        if (weighted) totalVol += w * reps;
       }
       return {
         name,
@@ -119,7 +132,6 @@ export default function StatsScreen() {
     setWeekFreq(sorted);
 
     // Progress data for each exercise (load all, expand on tap)
-    const allExercises = await getAllExercises();
     const groupOf = new Map(allExercises.map(e => [e.name, e.muscleGroup]));
 
     const topExercises = stats.slice(0, 10).map(e => e.name);
