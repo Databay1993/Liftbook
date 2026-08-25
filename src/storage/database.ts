@@ -54,7 +54,7 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'SZ-Curl':         'biceps',
   'Beinbeuger sitzend':   'hamstrings',
   'Seitheben':         'shoulders',
-  'Kniebeugemaschine': 'quads,glutes',
+  'Keiser Squat':     'quads,glutes',
   'Wadenheben exzentrisch':  'calves',
 };
 
@@ -298,6 +298,19 @@ export async function initDb() {
     // A hydraulic machine is set in percent, not in kilos
     await db.runAsync(
       "UPDATE exercises SET tracking_type = 'percent' WHERE name = 'Kniebeugemaschine'",
+    );
+  });
+
+  // The machine turned out to be a Keiser: pneumatic, and its display shows
+  // resistance as a number in kg or lbs — the reading of 116 rules out a
+  // percentage. Percent tracking would also discard that number, since it
+  // records reps only, taking the exercise out of every strength statistic.
+  await runOnce(db, 'keiser-squat-1', async () => {
+    for (const from of ['Kniebeugemaschine', 'Kniebeuge ohne Gewicht', 'Air Squat', 'Squat Air']) {
+      try { await renameExercise(from, 'Keiser Squat'); } catch { /* name taken */ }
+    }
+    await db.runAsync(
+      "UPDATE exercises SET tracking_type = 'weight_reps' WHERE name = 'Keiser Squat'",
     );
   });
 
