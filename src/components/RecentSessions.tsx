@@ -62,7 +62,7 @@ export default function RecentSessions({ sessions }: Props) {
                     {vol > 0 ? ` · ${Math.round(vol)} kg` : ''}
                   </Text>
                 </View>
-                <Text style={styles.exSets}>{summarizeSets(ex.sets, ex.trackingType)}</Text>
+                <Text style={styles.exSets}>{summarizeSets(ex.sets, ex.trackingType, ex.extraFields)}</Text>
               </View>
             );
           })}

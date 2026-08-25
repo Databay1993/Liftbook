@@ -54,6 +54,13 @@ export default {
   hintAfter: 'tras {{list}} · media {{count}}',
   hintLastSession: 'última sesión {{date}}',
 
+  extraFieldsTitle: 'Valores adicionales',
+  extraFieldsHint: 'Números que este ejercicio aporta además de carga y repeticiones — por ejemplo la potencia pico en una Keiser. Se aplica a todas las sesiones futuras de este ejercicio.',
+  extraFieldsNone: 'Aún no hay valores adicionales para este ejercicio.',
+  extraFieldName: 'Nombre, p. ej. Potencia pico',
+  extraFieldUnit: 'Unidad',
+  fieldExists: 'Ya existe',
+
   // Set timer
   timerStart: '▶',
   timerStop: '⏹',

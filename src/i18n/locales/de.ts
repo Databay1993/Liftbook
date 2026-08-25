@@ -71,6 +71,13 @@ export default {
   hintAfter: 'nach {{list}} · Ø{{count}}',
   hintLastSession: 'letztes Training {{date}}',
 
+  extraFieldsTitle: 'Zusatzwerte',
+  extraFieldsHint: 'Zahlen, die diese Übung außer Gewicht und Wiederholungen liefert — etwa Peak Power an der Keiser. Gilt ab sofort für jedes Training dieser Übung.',
+  extraFieldsNone: 'Noch keine Zusatzwerte für diese Übung.',
+  extraFieldName: 'Bezeichnung, z.B. Peak Power',
+  extraFieldUnit: 'Einheit',
+  fieldExists: 'Gibt es schon',
+
   // Set timer
   timerStart: '▶',
   timerStop: '⏹',

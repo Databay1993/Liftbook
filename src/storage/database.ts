@@ -58,6 +58,33 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Wadenheben exzentrisch':  'calves',
 };
 
+/**
+ * An extra number an exercise records beyond reps and load — peak power on a
+ * Keiser, an RPE, a heart rate. Defined per exercise and stored per set, so
+ * every exercise can have as many as it needs without new columns.
+ */
+export type ExtraField = { id: string; label: string; unit: string };
+
+export function parseExtraFields(raw: string | null): ExtraField[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(f => f && f.id && f.label) : [];
+  } catch {
+    return [];   // never let malformed data break the workout screen
+  }
+}
+
+export function parseExtras(raw: string | null): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export async function getDb() {
   if (!db) {
     db = await SQLite.openDatabaseAsync('liftbook.db');
@@ -156,6 +183,14 @@ export async function initDb() {
   // Older rows stay NULL and fall back to insertion order (MIN(sets.id)).
   try {
     await db.execAsync(`ALTER TABLE sets ADD COLUMN exercise_order INTEGER DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
+  // Migration: user-defined extra fields, as JSON so any number of them fit
+  try {
+    await db.execAsync(`ALTER TABLE exercises ADD COLUMN extra_fields TEXT DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+  try {
+    await db.execAsync(`ALTER TABLE sets ADD COLUMN extras TEXT DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
   // Tracks one-off data fixes so they never run twice
@@ -319,6 +354,16 @@ export async function initDb() {
   // exactly what the old single-group expansion produced, it was never a
   // choice the user made — squats reading "quads + hamstrings + glutes" and
   // tricep pushdowns reading "biceps + triceps" both come from there.
+  // The Keiser reports peak power for every set, so the field is there from
+  // the start rather than waiting to be typed in during a workout
+  await runOnce(db, 'keiser-peak-power-1', async () => {
+    await db.runAsync(
+      `UPDATE exercises SET extra_fields = ?
+       WHERE name = 'Keiser Squat' AND extra_fields IS NULL`,
+      JSON.stringify([{ id: 'f1_peakpower', label: 'Peak Power', unit: 'W' }]),
+    );
+  });
+
   // Percent used to occupy the reps column, which left no room for a rep
   // count at all. It now sits where the weight goes, so a percent exercise
   // records both numbers exactly like a weighted one.
@@ -376,9 +421,9 @@ export async function initDb() {
 
 // ── Exercises ──────────────────────────────────────────────────
 
-export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null }[]> {
+export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number; muscle_group: string | null }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number; muscle_group: string | null; extra_fields: string | null }>(
     'SELECT * FROM exercises ORDER BY is_custom ASC, name ASC'
   );
   return rows.map(r => ({
@@ -389,7 +434,16 @@ export async function getAllExercises(): Promise<{ id: number; name: string; isC
     restTime: r.rest_time ?? null,
     hasSides: r.has_sides === 1,
     muscleGroup: r.muscle_group ?? null,
+    extraFields: parseExtraFields(r.extra_fields),
   }));
+}
+
+export async function updateExerciseExtraFields(name: string, fields: ExtraField[]): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE exercises SET extra_fields = ? WHERE name = ?',
+    fields.length > 0 ? JSON.stringify(fields) : null, name,
+  );
 }
 
 export async function updateExerciseMuscleGroup(name: string, group: string | null): Promise<void> {
@@ -498,7 +552,7 @@ export async function createWorkoutRecord(date: string): Promise<number> {
 export async function saveExerciseSets(
   workoutId: number,
   exerciseName: string,
-  sets: { reps: string; weight: string; side?: string }[],
+  sets: { reps: string; weight: string; side?: string; extras?: Record<string, string> }[],
   /** Position of this exercise within the workout, 0-based. */
   exerciseOrder?: number,
 ): Promise<void> {
@@ -510,8 +564,10 @@ export async function saveExerciseSets(
   for (let i = 0; i < sets.length; i++) {
     const s = sets[i];
     await db.runAsync(
-      'INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight, side, exercise_order) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      `INSERT INTO sets (workout_id, exercise_name, set_number, reps, weight, side, exercise_order, extras)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       workoutId, exerciseName, i + 1, s.reps, s.weight, s.side ?? null, exerciseOrder ?? null,
+      s.extras && Object.values(s.extras).some(v => v !== '') ? JSON.stringify(s.extras) : null,
     );
   }
 }
@@ -586,7 +642,7 @@ export async function getHistory(): Promise<HistoryRow[]> {
 
 export async function getLastSessionForExercise(
   name: string
-): Promise<{ date: string; sets: { reps: string; weight: string; side?: string }[] } | null> {
+): Promise<{ date: string; sets: { reps: string; weight: string; side?: string; extras?: Record<string, string> }[] } | null> {
   const db = await getDb();
   const latest = await db.getFirstAsync<{ workoutId: number; date: string }>(`
     SELECT w.id as workoutId, w.date
@@ -599,14 +655,19 @@ export async function getLastSessionForExercise(
 
   if (!latest) return null;
 
-  const rawSets = await db.getAllAsync<{ reps: string; weight: string; side: string | null }>(
-    'SELECT reps, weight, side FROM sets WHERE workout_id = ? AND exercise_name = ? ORDER BY set_number ASC',
+  const rawSets = await db.getAllAsync<{ reps: string; weight: string; side: string | null; extras: string | null }>(
+    'SELECT reps, weight, side, extras FROM sets WHERE workout_id = ? AND exercise_name = ? ORDER BY set_number ASC',
     latest.workoutId, name
   );
 
   return {
     date: latest.date,
-    sets: rawSets.map(s => ({ reps: s.reps, weight: s.weight, ...(s.side ? { side: s.side } : {}) })),
+    sets: rawSets.map(s => ({
+      reps: s.reps,
+      weight: s.weight,
+      ...(s.side ? { side: s.side } : {}),
+      extras: parseExtras(s.extras),
+    })),
   };
 }
 
@@ -808,8 +869,8 @@ export async function getExercisePositions(): Promise<ExercisePosition[]> {
 
 // ── Recent sessions (last N workouts with full set detail) ────
 
-export type SessionSet = { reps: string; weight: string; side: string | null };
-export type SessionExercise = { name: string; trackingType: string; sets: SessionSet[] };
+export type SessionSet = { reps: string; weight: string; side: string | null; extras: Record<string, string> };
+export type SessionExercise = { name: string; trackingType: string; sets: SessionSet[]; extraFields: ExtraField[] };
 export type SessionDetail = { workoutId: number; date: string; exercises: SessionExercise[] };
 
 export async function getRecentWorkouts(limit = 2): Promise<SessionDetail[]> {
@@ -827,11 +888,13 @@ export async function getRecentWorkouts(limit = 2): Promise<SessionDetail[]> {
     const rows = await db.getAllAsync<{
       exercise_name: string;
       tracking_type: string | null;
+      extra_fields: string | null;
       reps: string;
       weight: string;
       side: string | null;
+      extras: string | null;
     }>(`
-      SELECT s.exercise_name, e.tracking_type, s.reps, s.weight, s.side
+      SELECT s.exercise_name, e.tracking_type, e.extra_fields, s.reps, s.weight, s.side, s.extras
       FROM sets s
       LEFT JOIN exercises e ON e.name = s.exercise_name
       WHERE s.workout_id = ?
@@ -846,10 +909,13 @@ export async function getRecentWorkouts(limit = 2): Promise<SessionDetail[]> {
           name: r.exercise_name,
           trackingType: r.tracking_type ?? 'weight_reps',
           sets: [],
+          extraFields: parseExtraFields(r.extra_fields),
         };
         order.push(r.exercise_name);
       }
-      exMap[r.exercise_name].sets.push({ reps: r.reps, weight: r.weight, side: r.side });
+      exMap[r.exercise_name].sets.push({
+        reps: r.reps, weight: r.weight, side: r.side, extras: parseExtras(r.extras),
+      });
     }
 
     sessions.push({ workoutId: w.id, date: w.date, exercises: order.map(n => exMap[n]) });

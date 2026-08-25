@@ -15,7 +15,7 @@ import {
   getAllExercises, getLastSessionForExercise,
   saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
   updateExerciseRestTime, updateExerciseHasSides, getHistory, updateExerciseOrder,
-  getExerciseSets, getWorkoutCompositions,
+  getExerciseSets, getWorkoutCompositions, updateExerciseExtraFields, ExtraField,
 } from '../storage/database';
 import {
   buildE1RMSeries, analyzeContexts, contextKey, estimateReps,
@@ -39,6 +39,8 @@ interface WSet {
   side?: 'left' | 'right';
   timerRunning?: boolean;
   timerStartedAt?: number;
+  /** User-defined measurements, keyed by field id. */
+  extras: Record<string, string>;
 }
 interface WExercise {
   name: string;
@@ -48,6 +50,8 @@ interface WExercise {
   restTime: number | null;
   showRestPicker: boolean;
   hasSides: boolean;
+  /** Extra numbers this exercise records beyond reps and load. */
+  extraFields: ExtraField[];
   /** Cards start folded so a long workout stays scannable. */
   collapsed: boolean;
 }
@@ -81,12 +85,15 @@ export default function WorkoutScreen({ navigation }: any) {
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
   const [newExName, setNewExName] = useState('');
-  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null }[]>([]);
+  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]>([]);
   const [contexts, setContexts] = useState<Record<string, ContextAnalysis>>({});
   const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string; side?: string }[] } | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [summary, setSummary] = useState<{ totalSets: number; totalVolume: number; newPRs: string[] } | null>(null);
+  const [fieldsFor, setFieldsFor] = useState<string | null>(null);   // exercise whose extra fields are being edited
+  const [newFieldLabel, setNewFieldLabel] = useState('');
+  const [newFieldUnit, setNewFieldUnit] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   // ── Set-level timer tick ──────────────────────────────────
@@ -162,6 +169,7 @@ export default function WorkoutScreen({ navigation }: any) {
           trackingType: (info?.trackingType ?? ex.trackingType) as TrackingType,
           restTime: info?.restTime ?? ex.restTime ?? null,
           hasSides: info?.hasSides ?? ex.hasSides ?? false,
+          extraFields: info?.extraFields ?? ex.extraFields ?? [],
           // Only where nothing is logged yet — coming back to a workout must
           // never overwrite sets already entered
           sets: ex.sets.length === 0 && last
@@ -170,6 +178,7 @@ export default function WorkoutScreen({ navigation }: any) {
                 weight: s.weight,
                 isDone: false,
                 side: s.side as 'left' | 'right' | undefined,
+                extras: {},
               }))
             : ex.sets,
         };
@@ -219,16 +228,72 @@ export default function WorkoutScreen({ navigation }: any) {
       [name]: analyzeContexts(buildE1RMSeries(sets, rule), compositions, name, info?.muscleGroup ?? null),
     }));
     const prefilled: WSet[] = last
-      ? last.sets.map(s => ({ reps: s.reps, weight: s.weight, isDone: false, side: s.side as 'left' | 'right' | undefined }))
+      ? last.sets.map(s => ({
+          reps: s.reps, weight: s.weight, isDone: false,
+          side: s.side as 'left' | 'right' | undefined,
+          extras: {},   // measured values belong to that session, not to this one
+        }))
       : [];
     const newEx: WExercise = {
       name, trackingType, sets: prefilled, isCompleted: false,
       restTime: info?.restTime ?? null, showRestPicker: false, hasSides,
+      extraFields: info?.extraFields ?? [],
       collapsed: false,   // just added means about to be logged
     };
     setExercises(prev => [...prev, newEx]);
     closeSheet();
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+  }
+
+  function updateExtra(exName: string, idx: number, fieldId: string, value: string) {
+    setExercises(prev => prev.map(ex => {
+      if (ex.name !== exName) return ex;
+      return {
+        ...ex,
+        sets: ex.sets.map((s, i) =>
+          i === idx ? { ...s, extras: { ...s.extras, [fieldId]: value } } : s
+        ),
+      };
+    }));
+  }
+
+  /**
+   * Extra fields belong to the exercise, not to one workout, so adding one
+   * here also defines it for every future session of that exercise.
+   */
+  async function addExtraField(exName: string) {
+    const label = newFieldLabel.trim();
+    if (!label) return;
+
+    const ex = exercises.find(e => e.name === exName);
+    if (!ex) return;
+    if (ex.extraFields.some(f => f.label.toLowerCase() === label.toLowerCase())) {
+      showToast(t('fieldExists'));
+      return;
+    }
+
+    const field: ExtraField = {
+      // Time-free id: a label can be renamed later without orphaning values
+      id: `f${ex.extraFields.length + 1}_${label.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12)}`,
+      label,
+      unit: newFieldUnit.trim(),
+    };
+    const next = [...ex.extraFields, field];
+
+    await updateExerciseExtraFields(exName, next);
+    setExercises(prev => prev.map(e => e.name === exName ? { ...e, extraFields: next } : e));
+    await loadExercises();
+    setNewFieldLabel('');
+    setNewFieldUnit('');
+  }
+
+  async function removeExtraField(exName: string, fieldId: string) {
+    const ex = exercises.find(e => e.name === exName);
+    if (!ex) return;
+    const next = ex.extraFields.filter(f => f.id !== fieldId);
+    await updateExerciseExtraFields(exName, next);
+    setExercises(prev => prev.map(e => e.name === exName ? { ...e, extraFields: next } : e));
+    await loadExercises();
   }
 
   function toggleCollapsed(exName: string) {
@@ -272,7 +337,11 @@ export default function WorkoutScreen({ navigation }: any) {
       : ex.trackingType === 'percent'
       ? `${first.weight}% × ${first.reps}`
       : `${first.reps}`;
-    return `${filled.length} ${t('sets')} · ${detail}${done > 0 ? ` · ${done} ✓` : ''}`;
+    const extras = ex.extraFields
+      .map(f => first.extras?.[f.id] ? `${first.extras[f.id]}${f.unit}` : null)
+      .filter(Boolean)
+      .join(' ');
+    return `${filled.length} ${t('sets')} · ${detail}${extras ? ` · ${extras}` : ''}${done > 0 ? ` · ${done} ✓` : ''}`;
   }
 
   function addSet(exName: string) {
@@ -281,10 +350,10 @@ export default function WorkoutScreen({ navigation }: any) {
       const last = ex.sets[ex.sets.length - 1];
       if (ex.hasSides) {
         // Add L+R pair
-        const base = { reps: last?.reps || '', weight: last?.weight || '', isDone: false };
+        const base = { reps: last?.reps || '', weight: last?.weight || '', isDone: false, extras: {} };
         return { ...ex, sets: [...ex.sets, { ...base, side: 'left' as const }, { ...base, side: 'right' as const }] };
       }
-      return { ...ex, sets: [...ex.sets, { reps: last?.reps || '', weight: last?.weight || '', isDone: false }] };
+      return { ...ex, sets: [...ex.sets, { reps: last?.reps || '', weight: last?.weight || '', isDone: false, extras: {} }] };
     }));
   }
 
@@ -391,7 +460,7 @@ export default function WorkoutScreen({ navigation }: any) {
     // rowing after pull-ups is not the same as rowing done first.
     const order = exercises.findIndex(e => e.name === exName);
     await saveExerciseSets(activeWorkout.workoutId, exName, validSets.map(s => ({
-      reps: s.reps, weight: s.weight, side: s.side,
+      reps: s.reps, weight: s.weight, side: s.side, extras: s.extras,
     })), order);
     setExercises(prev => prev.map(e => e.name === exName ? { ...e, isCompleted: true } : e));
     showToast(t('exerciseSaved'));
@@ -471,6 +540,7 @@ export default function WorkoutScreen({ navigation }: any) {
         reps: (s as WSet).reps,
         weight: (s as WSet).weight,
         side: (s as WSet).side,
+        extras: (s as WSet).extras,
       })), order);
     }
 
@@ -669,6 +739,15 @@ export default function WorkoutScreen({ navigation }: any) {
                       >
                         <Text style={[styles.sideToggleTxt, ex.hasSides && styles.sideToggleTxtActive]}>L|R</Text>
                       </TouchableOpacity>
+                      {/* Extra measurements this machine reports */}
+                      <TouchableOpacity
+                        style={[styles.sideToggleBtn, ex.extraFields.length > 0 && styles.sideToggleBtnActive]}
+                        onPress={() => setFieldsFor(ex.name)}
+                      >
+                        <Text style={[styles.sideToggleTxt, ex.extraFields.length > 0 && styles.sideToggleTxtActive]}>
+                          + {ex.extraFields.length || ''}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -731,7 +810,8 @@ export default function WorkoutScreen({ navigation }: any) {
                       : null;
 
                     return (
-                      <View key={idx} style={styles.setRow}>
+                      <React.Fragment key={idx}>
+                      <View style={styles.setRow}>
                         <Text style={styles.setNum}>{idx + 1}</Text>
 
                         {/* L/R side badge */}
@@ -901,6 +981,30 @@ export default function WorkoutScreen({ navigation }: any) {
                           <Text style={styles.delBtn}>×</Text>
                         </TouchableOpacity>
                       </View>
+
+                      {/* Whatever else this exercise measures, on its own line
+                          so the set row stays readable however many there are */}
+                      {ex.extraFields.length > 0 && (
+                        <View style={styles.extrasRow}>
+                          {ex.extraFields.map(field => (
+                            <View key={field.id} style={styles.extraItem}>
+                              <Text style={styles.extraLabel} numberOfLines={1}>
+                                {field.label}{field.unit ? ` (${field.unit})` : ''}
+                              </Text>
+                              <TextInput
+                                style={[styles.extraInput, s.isDone && styles.setInputDone]}
+                                keyboardType="numeric"
+                                placeholder="—"
+                                placeholderTextColor={colors.muted}
+                                value={s.extras?.[field.id] ?? ''}
+                                onChangeText={v => updateExtra(ex.name, idx, field.id, v)}
+                                editable={!s.isDone}
+                              />
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </React.Fragment>
                     );
                   })}
                   <TouchableOpacity style={styles.addSetBtn} onPress={() => addSet(ex.name)}>
@@ -998,6 +1102,67 @@ export default function WorkoutScreen({ navigation }: any) {
             </View>
           </KeyboardAvoidingView>
         </SafeAreaView>
+      </Modal>
+
+      {/* Extra measurements for one exercise */}
+      <Modal visible={!!fieldsFor} transparent animationType="fade" onRequestClose={() => setFieldsFor(null)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('extraFieldsTitle')}</Text>
+            <Text style={styles.modalSub}>{fieldsFor && exerciseLabel(fieldsFor, t)}</Text>
+            <Text style={styles.modalHint}>{t('extraFieldsHint')}</Text>
+
+            {(() => {
+              const ex = exercises.find(e => e.name === fieldsFor);
+              if (!ex || ex.extraFields.length === 0) {
+                return <Text style={styles.modalEmpty}>{t('extraFieldsNone')}</Text>;
+              }
+              return (
+                <View style={styles.fieldList}>
+                  {ex.extraFields.map(f => (
+                    <View key={f.id} style={styles.fieldRow}>
+                      <Text style={styles.fieldName}>
+                        {f.label}{f.unit ? ` (${f.unit})` : ''}
+                      </Text>
+                      <TouchableOpacity onPress={() => removeExtraField(ex.name, f.id)}>
+                        <Text style={styles.fieldRemove}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
+
+            <View style={styles.fieldInputs}>
+              <TextInput
+                style={[styles.textInput, { flex: 2 }]}
+                placeholder={t('extraFieldName')}
+                placeholderTextColor={colors.muted}
+                value={newFieldLabel}
+                onChangeText={setNewFieldLabel}
+              />
+              <TextInput
+                style={[styles.textInput, { flex: 1 }]}
+                placeholder={t('extraFieldUnit')}
+                placeholderTextColor={colors.muted}
+                value={newFieldUnit}
+                onChangeText={setNewFieldUnit}
+                onSubmitEditing={() => fieldsFor && addExtraField(fieldsFor)}
+              />
+              <TouchableOpacity
+                style={[styles.addNewExBtn, !newFieldLabel.trim() && { opacity: 0.35 }]}
+                onPress={() => fieldsFor && addExtraField(fieldsFor)}
+                disabled={!newFieldLabel.trim()}
+              >
+                <Text style={styles.addNewExText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.modalDone} onPress={() => setFieldsFor(null)}>
+              <Text style={styles.modalDoneTxt}>{t('save')}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {toast && <Toast message={toast} />}
@@ -1188,6 +1353,42 @@ function makeStyles(c: Colors) {
       textAlign: 'center',
     },
     repsHintLoose: { opacity: 0.6 },
+
+    extrasRow: {
+      flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+      marginLeft: 32, marginTop: -2, marginBottom: 8,
+    },
+    extraItem: { alignItems: 'flex-start' },
+    extraLabel: { fontSize: 9, color: c.muted, marginBottom: 2, maxWidth: 90 },
+    extraInput: {
+      width: 82,
+      backgroundColor: c.surface2,
+      borderWidth: 1, borderColor: c.border,
+      color: c.text,
+      paddingVertical: 6, paddingHorizontal: 6,
+      borderRadius: 6, fontSize: 14, textAlign: 'center',
+    },
+
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 22 },
+    modalCard: { backgroundColor: c.surface, borderRadius: 14, padding: 18, gap: 10 },
+    modalTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, letterSpacing: 2, color: c.text },
+    modalSub: { fontSize: 13, color: c.accent, marginTop: -6 },
+    modalHint: { fontSize: 11, color: c.muted, lineHeight: 16 },
+    modalEmpty: { fontSize: 12, color: c.muted, fontStyle: 'italic' },
+    fieldList: { gap: 6 },
+    fieldRow: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+      borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9,
+    },
+    fieldName: { fontSize: 14, color: c.text, flex: 1 },
+    fieldRemove: { fontSize: 14, color: c.muted, paddingHorizontal: 4 },
+    fieldInputs: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },
+    modalDone: {
+      backgroundColor: c.accent, borderRadius: 8,
+      paddingVertical: 12, alignItems: 'center', marginTop: 4,
+    },
+    modalDoneTxt: { color: '#000', fontSize: 15, fontWeight: '700' },
     hintWrap: { alignItems: 'center', maxWidth: 96 },
     hintSource: { fontSize: 8, color: c.muted, marginTop: 1, textAlign: 'center' },
     checkBtn: { width: 38, height: 38, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },

@@ -71,6 +71,13 @@ export default {
   hintAfter: 'after {{list}} · avg {{count}}',
   hintLastSession: 'last session {{date}}',
 
+  extraFieldsTitle: 'Extra values',
+  extraFieldsHint: 'Numbers this exercise reports besides load and reps — peak power on a Keiser, for instance. Applies to every future session of this exercise.',
+  extraFieldsNone: 'No extra values for this exercise yet.',
+  extraFieldName: 'Name, e.g. Peak Power',
+  extraFieldUnit: 'Unit',
+  fieldExists: 'Already exists',
+
   // Set timer
   timerStart: '▶',
   timerStop: '⏹',
