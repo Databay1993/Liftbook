@@ -826,6 +826,36 @@ export async function getWorkoutCompositions(exerciseName: string): Promise<Work
   return [...byWorkout.values()];
 }
 
+// ── Extra measurements over time ──────────────────────────────
+
+export type ExtraValueRow = {
+  workoutId: number;
+  date: string;
+  setNumber: number;
+  extras: Record<string, string>;
+};
+
+/** Every recorded extra value for one exercise, oldest first. */
+export async function getExerciseExtraValues(exerciseName: string): Promise<ExtraValueRow[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<{
+    workoutId: number; date: string; setNumber: number; extras: string | null;
+  }>(`
+    SELECT w.id as workoutId, w.date as date, s.set_number as setNumber, s.extras
+    FROM workouts w
+    JOIN sets s ON s.workout_id = w.id
+    WHERE s.exercise_name = ? AND s.extras IS NOT NULL
+    ORDER BY w.date ASC, s.set_number ASC
+  `, exerciseName);
+
+  return rows.map(r => ({
+    workoutId: r.workoutId,
+    date: r.date,
+    setNumber: r.setNumber,
+    extras: parseExtras(r.extras),
+  }));
+}
+
 // ── Position of an exercise within its workout ────────────────
 
 export type ExercisePosition = {

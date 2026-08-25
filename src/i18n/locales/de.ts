@@ -118,6 +118,11 @@ export default {
   e1rmWeakPoint: 'offener Punkt = geschätzt zu hoch',
   e1rmOverestimated: 'Über {{limit}} Wdh. — Schätzung fällt zu hoch aus',
 
+  chartExtras: 'Zusatzwerte',
+  chartExtrasHint: 'Selbst erfasste Messwerte — höchster Wert je Training',
+  metricNoData: 'Für „{{label}}" ist noch nichts eingetragen',
+  metricBest: 'Bestwert {{value}}{{unit}} am {{date}} · Punkt antippen',
+
   // Trend metrics (tap to switch)
   trendPerMonthUnit: 'kg/Mon',
   trendLabelSlope: 'Trend robust',

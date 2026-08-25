@@ -6,6 +6,6 @@
  * language. The built-in exercises additionally have a translation under
  * `ex_<name>`; everything the user typed themselves shows exactly as typed.
  */
-export function exerciseLabel(name: string, t: (key: string, opts?: object) => string): string {
+export function exerciseLabel(name: string, t: (key: string, opts?: any) => string): string {
   return t(`ex_${name}`, { defaultValue: '' }) || name;
 }

@@ -11,10 +11,12 @@ import {
   getRecentWorkouts, SessionDetail,
   getExerciseProgressByWeight, ProgressByWeightRow,
   getExerciseSets, getAllExercises, getWorkoutCompositions,
+  getExerciseExtraValues, ExtraField,
 } from '../storage/database';
 import {
   buildE1RMSeries, summarizeTrend, analyzeContexts, positionSeries,
-  E1RMPoint, TrendSummary, ContextAnalysis, SetRule, PositionPoint,
+  buildMetricSeries,
+  E1RMPoint, TrendSummary, ContextAnalysis, SetRule, PositionPoint, MetricPoint,
 } from '../lib/analytics';
 import ContextComparison from '../components/ContextComparison';
 import { exerciseLabel } from '../lib/exerciseName';
@@ -23,10 +25,11 @@ import ProgressChartByWeight from '../components/ProgressChartByWeight';
 import E1RMChart, { ChartOverlay, ChartSeries } from '../components/E1RMChart';
 import RecentSessions from '../components/RecentSessions';
 import StatsLegend from '../components/StatsLegend';
+import MetricChart from '../components/MetricChart';
 
 type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
 type ExStats = { name: string; pr: PR; totalVol: number };
-type ChartMode = 'e1rm' | 'byWeight' | 'context';
+type ChartMode = 'e1rm' | 'byWeight' | 'context' | 'extras';
 type TrendMetric = 'slope' | 'blocks' | 'ewma';
 const TREND_ORDER: TrendMetric[] = ['slope', 'blocks', 'ewma'];
 
@@ -42,6 +45,8 @@ type ExProgress = {
   trendFiltered: boolean;
   muscleGroup: string | null;
   positions: PositionPoint[];
+  /** User-defined measurements with their series, empty for most exercises. */
+  extras: { field: ExtraField; points: MetricPoint[] }[];
   expanded: boolean;
   mode: ChartMode;
   metric: TrendMetric;
@@ -137,10 +142,12 @@ export default function StatsScreen() {
     const topExercises = stats.slice(0, 10).map(e => e.name);
     const progressData = await Promise.all(
       topExercises.map(async name => {
-        const [points, sets, compositions] = await Promise.all([
+        const info = allExercises.find(e => e.name === name);
+        const [points, sets, compositions, extraRows] = await Promise.all([
           getExerciseProgressByWeight(name, setRule === 'first'),
           getExerciseSets(name),
           getWorkoutCompositions(name),
+          (info?.extraFields.length ?? 0) > 0 ? getExerciseExtraValues(name) : Promise.resolve([]),
         ]);
         const e1rm = buildE1RMSeries(sets, setRule);
         const muscleGroup = groupOf.get(name) ?? null;
@@ -164,6 +171,10 @@ export default function StatsScreen() {
           trendFiltered: filtered && currentGroup!.points.length < e1rm.length,
           muscleGroup,
           positions: positionSeries(compositions, name),
+          extras: (info?.extraFields ?? []).map(field => ({
+            field,
+            points: buildMetricSeries(extraRows, field.id),
+          })),
           expanded: false,
           mode: 'e1rm' as ChartMode,
           metric: 'slope' as TrendMetric,
@@ -345,6 +356,9 @@ export default function StatsScreen() {
                       { key: 'e1rm',     label: t('chartE1RM')     },
                       { key: 'byWeight', label: t('chartByWeight') },
                       { key: 'context',  label: t('chartContext')  },
+                      ...(ex.extras.length > 0
+                        ? [{ key: 'extras' as ChartMode, label: t('chartExtras') }]
+                        : []),
                     ] as { key: ChartMode; label: string }[]).map(m => (
                       <TouchableOpacity
                         key={m.key}
@@ -405,6 +419,18 @@ export default function StatsScreen() {
                         <Text style={styles.chartLabel}>{t('chartByWeightHint')}</Text>
                         <ProgressChartByWeight data={ex.points} />
                       </>
+                    ) : ex.mode === 'extras' ? (
+                      <View style={{ gap: 14 }}>
+                        <Text style={styles.chartLabel}>{t('chartExtrasHint')}</Text>
+                        {ex.extras.map(({ field, points }: { field: ExtraField; points: MetricPoint[] }) => (
+                          <MetricChart
+                            key={field.id}
+                            points={points}
+                            label={field.label}
+                            unit={field.unit}
+                          />
+                        ))}
+                      </View>
                     ) : (
                       <>
                         <Text style={styles.chartLabel}>{t('chartContextHint')}</Text>

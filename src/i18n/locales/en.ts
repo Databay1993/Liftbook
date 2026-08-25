@@ -118,6 +118,11 @@ export default {
   e1rmWeakPoint: 'hollow point = estimate runs high',
   e1rmOverestimated: 'Over {{limit}} reps — estimate runs high',
 
+  chartExtras: 'Extras',
+  chartExtrasHint: 'Values you record yourself — highest per session',
+  metricNoData: 'Nothing logged for "{{label}}" yet',
+  metricBest: 'Best {{value}}{{unit}} on {{date}} · tap a point',
+
   // Trend metrics (tap to switch)
   trendPerMonthUnit: 'kg/mo',
   trendLabelSlope: 'robust trend',

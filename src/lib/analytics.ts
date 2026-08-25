@@ -567,6 +567,37 @@ export function estimateReps(
   };
 }
 
+// ── Extra measurements ─────────────────────────────────────────
+
+export type MetricPoint = { workoutId: number; date: string; value: number };
+
+/**
+ * One point per session for a user-defined field.
+ *
+ * The session's highest value is taken rather than its first: these are
+ * measurements, not planned loads, and a field called peak power means the
+ * peak. A weak opening set should not represent the session.
+ */
+export function buildMetricSeries(
+  rows: { workoutId: number; date: string; extras: Record<string, string> }[],
+  fieldId: string,
+): MetricPoint[] {
+  const best = new Map<number, MetricPoint>();
+
+  for (const row of rows) {
+    const raw = row.extras?.[fieldId];
+    const value = raw === undefined ? NaN : parseFloat(raw.replace(',', '.'));
+    if (!isFinite(value)) continue;
+
+    const current = best.get(row.workoutId);
+    if (!current || value > current.value) {
+      best.set(row.workoutId, { workoutId: row.workoutId, date: row.date, value });
+    }
+  }
+
+  return [...best.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 // ── Set formatting ─────────────────────────────────────────────
 
 const SIDE_PREFIX: Record<string, string> = { left: 'L ', right: 'R ' };

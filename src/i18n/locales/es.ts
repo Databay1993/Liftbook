@@ -117,6 +117,11 @@ export default {
   e1rmWeakPoint: 'punto hueco = estimación alta',
   e1rmOverestimated: 'Más de {{limit}} reps — la estimación sale alta',
 
+  chartExtras: 'Adicionales',
+  chartExtrasHint: 'Valores que registras tú — el más alto por sesión',
+  metricNoData: 'Aún no hay nada registrado para «{{label}}»',
+  metricBest: 'Mejor {{value}}{{unit}} el {{date}} · toca un punto',
+
   // Trend metrics (tap to switch)
   trendPerMonthUnit: 'kg/mes',
   trendLabelSlope: 'tendencia robusta',
