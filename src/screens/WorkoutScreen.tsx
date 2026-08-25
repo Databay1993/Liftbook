@@ -544,7 +544,15 @@ export default function WorkoutScreen({ navigation }: any) {
         </View>
       </View>
 
-      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
+        // Set fields further down would otherwise disappear behind the keyboard
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         <View style={styles.workoutTitleRow}>
           <Text style={styles.sectionTitle}>{t('workout').toUpperCase()}</Text>
           {exercises.length > 1 && (

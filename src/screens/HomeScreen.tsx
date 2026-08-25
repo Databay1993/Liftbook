@@ -107,7 +107,15 @@ export default function HomeScreen({ navigation }: any) {
         </TouchableOpacity>
       )}
 
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
+        // The exercise field sits at the very bottom, where the keyboard would
+        // otherwise cover exactly what is being typed
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {/* Hero */}
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>{t('readyToPush')}</Text>
