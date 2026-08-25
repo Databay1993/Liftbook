@@ -56,6 +56,10 @@ export default {
   distanceKm: 'km',
   percent: '%',
 
+  collapseAll: 'Alle zuklappen',
+  expandAll: 'Alle aufklappen',
+  noSetsYet: 'noch nichts eingetragen',
+
   // Sides (L/R)
   sidesOff: 'L|R aus',
   sidesOn: 'L|R an',

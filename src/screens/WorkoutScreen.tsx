@@ -14,7 +14,7 @@ import { useWorkout } from '../context/WorkoutContext';
 import {
   getAllExercises, getLastSessionForExercise,
   saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
-  updateExerciseRestTime, updateExerciseHasSides, getHistory,
+  updateExerciseRestTime, updateExerciseHasSides, getHistory, updateExerciseOrder,
   getExerciseSets, getWorkoutCompositions,
 } from '../storage/database';
 import {
@@ -48,6 +48,8 @@ interface WExercise {
   restTime: number | null;
   showRestPicker: boolean;
   hasSides: boolean;
+  /** Cards start folded so a long workout stays scannable. */
+  collapsed: boolean;
 }
 
 // ── Tracking type config ───────────────────────────────────────
@@ -121,7 +123,8 @@ export default function WorkoutScreen({ navigation }: any) {
 
   useEffect(() => {
     if (activeWorkout) {
-      setExercises(activeWorkout.exercises as WExercise[]);
+      // Resuming shows the plan, not eight open cards
+      setExercises((activeWorkout.exercises as WExercise[]).map(e => ({ ...e, collapsed: true })));
     }
   }, [activeWorkout?.workoutId]);
 
@@ -172,10 +175,55 @@ export default function WorkoutScreen({ navigation }: any) {
     const newEx: WExercise = {
       name, trackingType, sets: prefilled, isCompleted: false,
       restTime: info?.restTime ?? null, showRestPicker: false, hasSides,
+      collapsed: false,   // just added means about to be logged
     };
     setExercises(prev => [...prev, newEx]);
     closeSheet();
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 300);
+  }
+
+  function toggleCollapsed(exName: string) {
+    setExercises(prev => prev.map(ex =>
+      ex.name === exName ? { ...ex, collapsed: !ex.collapsed } : ex
+    ));
+  }
+
+  function setAllCollapsed(collapsed: boolean) {
+    setExercises(prev => prev.map(ex => ({ ...ex, collapsed })));
+  }
+
+  /**
+   * Moves an exercise within the workout. Anything already saved carries its
+   * old position on disk, so the stored order is rewritten too — the
+   * comparison later reads exactly that to decide what is comparable.
+   */
+  function moveExercise(index: number, dir: -1 | 1) {
+    const to = index + dir;
+    if (to < 0 || to >= exercises.length) return;
+
+    const reordered = [...exercises];
+    [reordered[index], reordered[to]] = [reordered[to], reordered[index]];
+    setExercises(reordered);
+
+    if (activeWorkout?.workoutId) {
+      updateExerciseOrder(activeWorkout.workoutId, reordered.map(e => e.name)).catch(() => {});
+    }
+  }
+
+  /** One line describing a folded card, so it stays useful while closed. */
+  function collapsedSummary(ex: WExercise): string {
+    const filled = ex.sets.filter(s => s.reps || s.weight);
+    if (filled.length === 0) return t('noSetsYet');
+    const done = ex.sets.filter(s => s.isDone).length;
+    const first = filled[0];
+    const detail = ex.trackingType === 'weight_reps' && first.weight
+      ? `${first.reps}×${first.weight}kg`
+      : ex.trackingType === 'time'
+      ? formatDuration(first.reps)
+      : ex.trackingType === 'percent'
+      ? `${first.reps}%`
+      : `${first.reps}`;
+    return `${filled.length} ${t('sets')} · ${detail}${done > 0 ? ` · ${done} ✓` : ''}`;
   }
 
   function addSet(exName: string) {
@@ -450,6 +498,16 @@ export default function WorkoutScreen({ navigation }: any) {
       <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}>
         <View style={styles.workoutTitleRow}>
           <Text style={styles.sectionTitle}>{t('workout').toUpperCase()}</Text>
+          {exercises.length > 1 && (
+            <TouchableOpacity
+              style={styles.foldAllBtn}
+              onPress={() => setAllCollapsed(!exercises.every(e => e.collapsed))}
+            >
+              <Text style={styles.foldAllTxt}>
+                {exercises.every(e => e.collapsed) ? t('expandAll') : t('collapseAll')}
+              </Text>
+            </TouchableOpacity>
+          )}
           <Text style={styles.dateText}>
             {new Date(activeWorkout.date).toLocaleDateString(undefined, { weekday: 'long', day: '2-digit', month: 'long' })}
           </Text>
@@ -457,19 +515,50 @@ export default function WorkoutScreen({ navigation }: any) {
 
         {exercises.length === 0 && <Text style={styles.emptyState}>{t('noExercises')}</Text>}
 
-        {exercises.map(ex => {
+        {exercises.map((ex, exIndex) => {
           const last = lastSessions[ex.name];
           const disabled = ex.isCompleted;
+          const folded = ex.collapsed;
 
           return (
             <View key={ex.name} style={[styles.exerciseCard, disabled && styles.exerciseCardDone]}>
               {/* Exercise header */}
               <View style={styles.exHeader}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.exName}>{exerciseLabel(ex.name, t)}</Text>
+                  <View style={styles.exTitleRow}>
+                    <Text style={styles.exPos}>{exIndex + 1}.</Text>
+                    <TouchableOpacity
+                      style={styles.exNameBtn}
+                      onPress={() => toggleCollapsed(ex.name)}
+                      hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                    >
+                      <Text style={styles.exName} numberOfLines={1}>{exerciseLabel(ex.name, t)}</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.exChevron}>{folded ? '▾' : '▴'}</Text>
+                    <TouchableOpacity
+                      style={[styles.moveBtn, exIndex === 0 && styles.moveBtnOff]}
+                      onPress={() => moveExercise(exIndex, -1)}
+                      disabled={exIndex === 0}
+                      hitSlop={{ top: 8, bottom: 8, left: 2, right: 2 }}
+                    >
+                      <Text style={styles.moveBtnTxt}>↑</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.moveBtn, exIndex === exercises.length - 1 && styles.moveBtnOff]}
+                      onPress={() => moveExercise(exIndex, 1)}
+                      disabled={exIndex === exercises.length - 1}
+                      hitSlop={{ top: 8, bottom: 8, left: 2, right: 2 }}
+                    >
+                      <Text style={styles.moveBtnTxt}>↓</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {folded && (
+                    <Text style={styles.exSummary}>{collapsedSummary(ex)}</Text>
+                  )}
 
                   {/* Rest time badge + inline picker */}
-                  {!disabled && (
+                  {!disabled && !folded && (
                     <View style={styles.restTimeRow}>
                       <TouchableOpacity
                         style={[styles.restTimeBadge, ex.restTime !== null && styles.restTimeBadgeCustom]}
@@ -501,7 +590,7 @@ export default function WorkoutScreen({ navigation }: any) {
                   )}
 
                   {/* Tracking type pills + L/R toggle */}
-                  {!disabled && (
+                  {!disabled && !folded && (
                     <View style={styles.trackingRow}>
                       <View style={styles.trackingPills}>
                         {TRACKING_TYPES.map(tt => (
@@ -544,7 +633,7 @@ export default function WorkoutScreen({ navigation }: any) {
               </View>
 
               {/* Last session */}
-              {last ? (
+              {!folded && (last ? (
                 <View style={styles.lastSession}>
                   <Text style={styles.lastLabel}>
                     {t('lastSession')} · {new Date(last.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
@@ -571,10 +660,10 @@ export default function WorkoutScreen({ navigation }: any) {
                 </View>
               ) : (
                 <Text style={styles.noHistory}>{t('firstTime')}</Text>
-              )}
+              ))}
 
               {/* Sets */}
-              {!disabled && (
+              {!disabled && !folded && (
                 <View style={styles.setsBody}>
                   {ex.sets.map((s, idx) => {
                     const hint = ex.trackingType === 'weight_reps'
@@ -886,6 +975,12 @@ function makeStyles(c: Colors) {
     workoutTitleRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 },
     sectionTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted },
     dateText: { fontSize: 12, color: c.muted },
+    foldAllBtn: {
+      paddingHorizontal: 10, paddingVertical: 3,
+      borderRadius: 12, borderWidth: 1,
+      borderColor: c.border, backgroundColor: c.surface2,
+    },
+    foldAllTxt: { fontSize: 10, color: c.muted },
     emptyState: { textAlign: 'center', color: c.muted, paddingVertical: 40, fontSize: 14, lineHeight: 22 },
 
     exerciseCard: {
@@ -899,7 +994,19 @@ function makeStyles(c: Colors) {
     exerciseCardDone: { borderColor: c.accent, opacity: 0.75 },
 
     exHeader: { padding: 14, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    exName: { fontWeight: '600', fontSize: 16, color: c.text, marginBottom: 6 },
+    exTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    exPos: { fontFamily: 'BebasNeue_400Regular', fontSize: 17, color: c.accent, minWidth: 18 },
+    exNameBtn: { flex: 1 },
+    exName: { fontWeight: '600', fontSize: 16, color: c.text },
+    exChevron: { fontSize: 11, color: c.muted, paddingHorizontal: 2 },
+    exSummary: { fontSize: 12, color: c.muted, marginLeft: 24, marginBottom: 2 },
+    moveBtn: {
+      width: 26, height: 26, borderRadius: 6,
+      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    moveBtnOff: { opacity: 0.3 },
+    moveBtnTxt: { color: c.accent, fontSize: 13, fontWeight: '700' },
     exHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 8 },
 
     exDoneBtn: {

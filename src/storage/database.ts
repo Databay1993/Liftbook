@@ -492,6 +492,23 @@ export async function saveExerciseSets(
   }
 }
 
+/**
+ * Rewrites the exercise order of a workout already on disk.
+ *
+ * Reordering mid-session would otherwise leave exercises that were saved
+ * earlier stamped with their old position, and the comparison reads that
+ * position to decide what a session is comparable to.
+ */
+export async function updateExerciseOrder(workoutId: number, names: string[]): Promise<void> {
+  const db = await getDb();
+  for (let i = 0; i < names.length; i++) {
+    await db.runAsync(
+      'UPDATE sets SET exercise_order = ? WHERE workout_id = ? AND exercise_name = ?',
+      i, workoutId, names[i],
+    );
+  }
+}
+
 export async function saveWorkout(
   date: string,
   exercises: { name: string; sets: { reps: string; weight: string }[] }[]
