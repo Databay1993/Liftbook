@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import beepSound from '../../assets/sounds/liftbook_beep.wav';
 
 // Show notifications even when app is foregrounded
 Notifications.setNotificationHandler({
@@ -16,6 +17,30 @@ Notifications.setNotificationHandler({
 });
 
 const NOTIF_ID_KEY = 'rest_timer_notif';
+
+/**
+ * iOS silences app audio whenever the ring switch is flipped, which is
+ * exactly how a phone sits in a gym — so the rest timer stayed mute there
+ * while the lock-screen notification, which bypasses the switch, was
+ * audible. Opting out of that behaviour is what makes the beep reliable.
+ *
+ * Configured once and reused, since the audio session is global.
+ */
+let audioSession: Promise<void> | null = null;
+function prepareAudio(): Promise<void> {
+  const existing = audioSession;
+  if (existing) return existing;
+
+  const created = Audio.setAudioModeAsync({
+    playsInSilentModeIOS: true,
+    staysActiveInBackground: false,
+    shouldDuckAndroid: true,      // pause music briefly instead of talking over it
+    playThroughEarpieceAndroid: false,
+  }).catch(() => { /* keep going; the haptic still fires */ });
+
+  audioSession = created;
+  return created;
+}
 
 export function useTimer() {
   const [seconds, setSeconds] = useState<number | null>(null);
@@ -52,6 +77,7 @@ export function useTimer() {
   }
 
   function start(duration: number) {
+    prepareAudio();
     if (intervalRef.current) clearInterval(intervalRef.current);
     endAtRef.current = Date.now() + duration * 1000;
     setMaxSeconds(duration);
@@ -68,7 +94,8 @@ export function useTimer() {
         intervalRef.current = null;
         cancelWakeNotif();
         // Play beep sound directly — works in Expo Go
-        Audio.Sound.createAsync(require('../../assets/sounds/liftbook_beep.wav'))
+        prepareAudio()
+          .then(() => Audio.Sound.createAsync(beepSound))
           .then(({ sound }) => {
             sound.playAsync();
             sound.setOnPlaybackStatusUpdate(status => {
