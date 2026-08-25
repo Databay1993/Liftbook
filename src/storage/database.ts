@@ -37,6 +37,8 @@ const DEFAULT_MUSCLE_GROUPS: Record<string, string> = {
   'Lat Pulldown':     'back,biceps',
 
   // The user's own exercises
+  'Adduktorenmaschine': 'adductors',
+  'Abduktorenmaschine': 'glutes',
   'Brustpresse':      'chest,triceps',
   'Bulgarian Split Squat': 'quads,glutes',
   'Butterfly':         'chest',
@@ -409,6 +411,22 @@ export async function initDb() {
       );
     }
   }
+
+  // Exercises added to the defaults after the app shipped never reach a
+  // database that already has rows in it, since seeding above only runs on an
+  // empty one. Insert them once by name, so a device that already deleted them
+  // does not get them back on the next start.
+  await runOnce(db, 'adductor-machines-1', async () => {
+    for (const name of ['Adduktorenmaschine', 'Abduktorenmaschine']) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO exercises (name, is_custom, muscle_group, tracking_type)
+         VALUES (?, 0, ?, 'weight_reps')`,
+        name, DEFAULT_MUSCLE_GROUPS[name],
+      );
+      // If it was typed in by hand before it shipped, it is a default now
+      await db.runAsync('UPDATE exercises SET is_custom = 0 WHERE name = ?', name);
+    }
+  });
 
   // Entries that were typed in by hand before they shipped as defaults are
   // still flagged custom; line them up with what they now are
