@@ -47,6 +47,9 @@ export default function SettingsScreen() {
   const [renameInput, setRenameInput] = useState('');
   const [groupTarget, setGroupTarget] = useState<string | null>(null);
   const [setRule, setSetRule] = useState<SetRule>('first');
+  // Folded on every visit, not remembered: the list is long enough to bury
+  // everything under it, and it is only ever opened to change one entry
+  const [showExercises, setShowExercises] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(REST_KEY).then(v => {
@@ -297,7 +300,19 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Exercises ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('exercisesSection' as any).toUpperCase()}</Text>
+        <TouchableOpacity
+          style={[styles.sectionHead, { marginTop: 32 }]}
+          onPress={() => setShowExercises(v => !v)}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.sectionTitle}>{t('exercisesSection' as any).toUpperCase()}</Text>
+          <Text style={styles.sectionCount}>
+            {t('exercisesCount' as any, { count: exercises.length })}
+          </Text>
+          <Text style={styles.sectionChevron}>{showExercises ? '▾' : '▸'}</Text>
+        </TouchableOpacity>
+        {showExercises && (
+        <>
         <Text style={styles.sectionHint}>{t('muscleGroupHint')}</Text>
         <View style={styles.exerciseList}>
           {exercises.map(ex => (
@@ -322,6 +337,8 @@ export default function SettingsScreen() {
             </View>
           ))}
         </View>
+        </>
+        )}
 
         {/* ── About ── */}
         <Text style={[styles.sectionTitle, { marginTop: 32 }]}>{t('about').toUpperCase()}</Text>
@@ -440,6 +457,13 @@ function makeStyles(c: Colors) {
       color: c.muted,
       marginBottom: 10,
     },
+    sectionHead: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: 8,
+    },
+    sectionCount: { flex: 1, fontSize: 12, color: c.muted, opacity: 0.7 },
+    sectionChevron: { fontSize: 14, color: c.muted },
 
     // Language
     langList: { gap: 8 },
