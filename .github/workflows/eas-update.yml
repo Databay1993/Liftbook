@@ -33,7 +33,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # eas-cli pulls @oclif/plugin-autocomplete, which refuses to install
+          # below Node 22 — pinning 20 here broke every publish
+          node-version: 22
           cache: npm
 
       - uses: expo/expo-github-action@v8
