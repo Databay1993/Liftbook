@@ -428,6 +428,21 @@ export async function initDb() {
     }
   });
 
+  // Shipping the two machines above created a second entry next to the
+  // hand-typed spelling, so the same machine had two histories. Fold the
+  // typed one into the default and keep every logged set.
+  await runOnce(db, 'adductor-machines-merge-1', async () => {
+    const spellings: Record<string, string> = {
+      'Adduktoren-Maschine': 'Adduktorenmaschine',
+      'Adduktoren Maschine': 'Adduktorenmaschine',
+      'Abduktoren-Maschine': 'Abduktorenmaschine',
+      'Abduktoren Maschine': 'Abduktorenmaschine',
+    };
+    for (const [from, into] of Object.entries(spellings)) {
+      try { await mergeExercises(from, into); } catch { /* nothing to merge */ }
+    }
+  });
+
   // Entries that were typed in by hand before they shipped as defaults are
   // still flagged custom; line them up with what they now are
   await runOnce(db, 'standard-exercises-1', async () => {

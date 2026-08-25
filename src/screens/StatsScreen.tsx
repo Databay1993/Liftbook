@@ -33,6 +33,9 @@ type ChartMode = 'e1rm' | 'byWeight' | 'context' | 'extras';
 type TrendMetric = 'slope' | 'blocks' | 'ewma';
 const TREND_ORDER: TrendMetric[] = ['slope', 'blocks', 'ewma'];
 
+/** The foldable top-level blocks of this screen, in the order they appear. */
+type SectionKey = 'recent' | 'progress' | 'records' | 'volume' | 'frequency';
+
 type ExProgress = {
   name: string;
   points: ProgressByWeightRow[];
@@ -64,6 +67,13 @@ export default function StatsScreen() {
   const [recentSessions, setRecentSessions] = useState<SessionDetail[]>([]);
   const [showLegend, setShowLegend] = useState(false);
   const [progress, setProgress] = useState<ExProgress[]>([]);
+
+  // Every section starts folded, so the page opens as a table of contents
+  // instead of a wall that has to be scrolled past to reach the next heading
+  const [open, setOpen] = useState<Record<SectionKey, boolean>>({
+    recent: false, progress: false, records: false, volume: false, frequency: false,
+  });
+  const toggleSection = (key: SectionKey) => setOpen(o => ({ ...o, [key]: !o[key] }));
 
   useFocusEffect(useCallback(() => {
     load();
@@ -304,6 +314,19 @@ export default function StatsScreen() {
 
   const maxVol = Math.max(...exStats.map(e => e.totalVol), 1);
 
+  /** Foldable heading: title, how much is hidden behind it, and a chevron. */
+  const head = (key: SectionKey, label: string, count: number, first = false) => (
+    <TouchableOpacity
+      style={[styles.sectionHead, !first && { marginTop: 24 }]}
+      onPress={() => toggleSection(key)}
+      activeOpacity={0.7}
+    >
+      <Text style={styles.sectionTitle}>{label.toUpperCase()}</Text>
+      <Text style={styles.sectionCount}>{count}</Text>
+      <Text style={styles.sectionChevron}>{open[key] ? '▾' : '▸'}</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -333,12 +356,12 @@ export default function StatsScreen() {
         </View>
 
         {/* ── Recent sessions (last + previous) ── */}
-        <Text style={styles.sectionTitle}>{t('recentSessions').toUpperCase()}</Text>
-        <RecentSessions sessions={recentSessions} />
+        {head('recent', t('recentSessions'), recentSessions.length, true)}
+        {open.recent && <RecentSessions sessions={recentSessions} />}
 
         {/* ── Progress Charts ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('progressCharts').toUpperCase()}</Text>
-        {progress.length === 0 ? (
+        {head('progress', t('progressCharts'), progress.length)}
+        {open.progress && (progress.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
         ) : (
           progress.map(ex => (
@@ -446,11 +469,11 @@ export default function StatsScreen() {
               )}
             </View>
           ))
-        )}
+        ))}
 
         {/* ── Personal Records ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('personalRecords').toUpperCase()}</Text>
-        {exStats.length === 0 ? (
+        {head('records', t('personalRecords'), exStats.length)}
+        {open.records && (exStats.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
         ) : (
           exStats.map(ex => (
@@ -475,11 +498,11 @@ export default function StatsScreen() {
               </View>
             </View>
           ))
-        )}
+        ))}
 
         {/* ── Volume bars ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('totalVolume').toUpperCase()}</Text>
-        {exStats.length === 0 ? (
+        {head('volume', t('totalVolume'), exStats.length)}
+        {open.volume && (exStats.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
         ) : (
           exStats.map(ex => (
@@ -493,22 +516,24 @@ export default function StatsScreen() {
               </View>
             </View>
           ))
-        )}
+        ))}
 
         {/* ── Weekly frequency ── */}
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('weeklyFrequency').toUpperCase()}</Text>
-        <View style={styles.freqRow}>
-          {weekFreq.length === 0 ? (
-            <Text style={styles.empty}>{t('noData')}</Text>
-          ) : (
-            weekFreq.map(w => (
-              <View key={w.week} style={[styles.freqChip, w.count >= 3 && styles.freqChipActive]}>
-                <Text style={[styles.freqText, w.count >= 3 && styles.freqTextActive]}>W{w.week}</Text>
-                <Text style={[styles.freqCount, w.count >= 3 && styles.freqTextActive]}>{w.count}×</Text>
-              </View>
-            ))
-          )}
-        </View>
+        {head('frequency', t('weeklyFrequency'), weekFreq.length)}
+        {open.frequency && (
+          <View style={styles.freqRow}>
+            {weekFreq.length === 0 ? (
+              <Text style={styles.empty}>{t('noData')}</Text>
+            ) : (
+              weekFreq.map(w => (
+                <View key={w.week} style={[styles.freqChip, w.count >= 3 && styles.freqChipActive]}>
+                  <Text style={[styles.freqText, w.count >= 3 && styles.freqTextActive]}>W{w.week}</Text>
+                  <Text style={[styles.freqCount, w.count >= 3 && styles.freqTextActive]}>{w.count}×</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
       </ScrollView>
 
       <StatsLegend visible={showLegend} onClose={() => setShowLegend(false)} />
@@ -545,6 +570,9 @@ function makeStyles(c: Colors) {
     },
     legendBtnTxt: { fontSize: 11, color: c.muted },
     sectionTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 10 },
+    sectionHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+    sectionCount: { flex: 1, fontSize: 12, color: c.muted, opacity: 0.6 },
+    sectionChevron: { fontSize: 14, color: c.muted },
     empty: { color: c.muted, fontSize: 13, paddingVertical: 8 },
 
     // Totals
