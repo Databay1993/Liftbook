@@ -655,22 +655,43 @@ export type HistoryRow = {
   setNumber: number;
   reps: string;
   weight: string;
+  side: string | null;
+  extras: Record<string, string>;
+  /** Of the exercise, so a row can be formatted without a second lookup. */
+  trackingType: string;
+  extraFields: ExtraField[];
 };
 
 export async function getHistory(): Promise<HistoryRow[]> {
   const db = await getDb();
-  return db.getAllAsync<HistoryRow>(`
+  const rows = await db.getAllAsync<{
+    workoutId: number; date: string; exerciseName: string; setNumber: number;
+    reps: string; weight: string; side: string | null; extras: string | null;
+    trackingType: string | null; extraFields: string | null;
+  }>(`
     SELECT
       w.id as workoutId,
       w.date,
       s.exercise_name as exerciseName,
       s.set_number as setNumber,
       s.reps,
-      s.weight
+      s.weight,
+      s.side,
+      s.extras,
+      e.tracking_type as trackingType,
+      e.extra_fields as extraFields
     FROM workouts w
     JOIN sets s ON s.workout_id = w.id
+    LEFT JOIN exercises e ON e.name = s.exercise_name
     ORDER BY w.date DESC, s.exercise_name ASC, s.set_number ASC
   `);
+  return rows.map(r => ({
+    ...r,
+    // An exercise deleted after the fact leaves the join empty
+    trackingType: r.trackingType ?? 'weight_reps',
+    extras: parseExtras(r.extras),
+    extraFields: parseExtraFields(r.extraFields),
+  }));
 }
 
 export async function getLastSessionForExercise(

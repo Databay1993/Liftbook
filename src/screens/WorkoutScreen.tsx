@@ -18,7 +18,7 @@ import {
   getExerciseSets, getWorkoutCompositions, updateExerciseExtraFields, ExtraField,
 } from '../storage/database';
 import {
-  buildE1RMSeries, analyzeContexts, contextKey, estimateReps,
+  buildE1RMSeries, analyzeContexts, contextKey, estimateReps, formatSet, formatDuration,
   ContextAnalysis, RepsEstimate,
 } from '../lib/analytics';
 import { loadSetRule } from '../lib/setRule';
@@ -65,13 +65,6 @@ const TRACKING_TYPES: { value: TrackingType; labelKey: string }[] = [
   { value: 'percent',       labelKey: 'trackPercent'     },
 ];
 
-function formatDuration(sec: string): string {
-  const s = parseInt(sec) || 0;
-  const m = Math.floor(s / 60);
-  const rest = s % 60;
-  return m > 0 ? `${m}:${rest.toString().padStart(2, '0')}` : `${s}s`;
-}
-
 // ── Component ─────────────────────────────────────────────────
 export default function WorkoutScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -87,7 +80,10 @@ export default function WorkoutScreen({ navigation }: any) {
   const [newExName, setNewExName] = useState('');
   const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]>([]);
   const [contexts, setContexts] = useState<Record<string, ContextAnalysis>>({});
-  const [lastSessions, setLastSessions] = useState<Record<string, { date: string; sets: { reps: string; weight: string; side?: string }[] } | null>>({});
+  const [lastSessions, setLastSessions] = useState<Record<string, {
+    date: string;
+    sets: { reps: string; weight: string; side?: string; extras?: Record<string, string> }[];
+  } | null>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [summary, setSummary] = useState<{ totalSets: number; totalVolume: number; newPRs: string[] } | null>(null);
@@ -330,13 +326,10 @@ export default function WorkoutScreen({ navigation }: any) {
     if (filled.length === 0) return t('noSetsYet');
     const done = ex.sets.filter(s => s.isDone).length;
     const first = filled[0];
-    const detail = ex.trackingType === 'weight_reps' && first.weight
-      ? `${first.reps}×${first.weight}kg`
-      : ex.trackingType === 'time'
-      ? formatDuration(first.reps)
-      : ex.trackingType === 'percent'
-      ? `${first.weight}% × ${first.reps}`
-      : `${first.reps}`;
+    const detail = formatSet(
+      { reps: first.reps, weight: first.weight, side: first.side ?? null, extras: first.extras ?? {} },
+      ex.trackingType,
+    );
     const extras = ex.extraFields
       .map(f => first.extras?.[f.id] ? `${first.extras[f.id]}${f.unit}` : null)
       .filter(Boolean)
@@ -776,16 +769,12 @@ export default function WorkoutScreen({ navigation }: any) {
                   </Text>
                   <View style={styles.lastChips}>
                     {last.sets.map((s, i) => {
-                      const sidePrefix = s.side === 'left' ? 'L · ' : s.side === 'right' ? 'R · ' : '';
-                      const label = ex.trackingType === 'time'
-                        ? `${sidePrefix}S${i + 1}: ${formatDuration(s.reps)}`
-                        : ex.trackingType === 'bodyweight'
-                        ? `${sidePrefix}S${i + 1}: ${s.reps} reps`
-                        : ex.trackingType === 'distance_time'
-                        ? `${sidePrefix}S${i + 1}: ${s.weight}km · ${formatDuration(s.reps)}`
-                        : ex.trackingType === 'percent'
-                        ? `${sidePrefix}S${i + 1}: ${s.reps}%`
-                        : `${sidePrefix}S${i + 1}: ${s.reps}×${s.weight}kg`;
+                      // One formatter for the whole app, so percent keeps
+                      // reading its value off the load axis everywhere
+                      const label = `S${i + 1}: ${formatSet(
+                        { reps: s.reps, weight: s.weight, side: s.side ?? null, extras: s.extras ?? {} },
+                        ex.trackingType,
+                      )}`;
                       return (
                         <View key={i} style={styles.lastChip}>
                           <Text style={styles.lastChipText}>{label}</Text>

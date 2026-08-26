@@ -16,6 +16,7 @@ import {
 } from '../storage/database';
 import Toast from '../components/Toast';
 import TemplateEditorScreen from './TemplateEditorScreen';
+import { exerciseLabel } from '../lib/exerciseName';
 
 export default function HomeScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -157,7 +158,7 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.templateInfo}>
                   <Text style={styles.templateName}>{tmpl.name}</Text>
                   <Text style={styles.templateExercises}>
-                    {tmpl.exercises.slice(0, 3).join(' · ')}
+                    {tmpl.exercises.slice(0, 3).map(n => exerciseLabel(n, t)).join(' · ')}
                     {tmpl.exercises.length > 3 ? ` +${tmpl.exercises.length - 3}` : ''}
                   </Text>
                 </View>

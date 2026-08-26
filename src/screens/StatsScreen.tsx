@@ -15,7 +15,7 @@ import {
 } from '../storage/database';
 import {
   buildE1RMSeries, summarizeTrend, analyzeContexts, positionSeries,
-  buildMetricSeries,
+  buildMetricSeries, formatDuration,
   E1RMPoint, TrendSummary, ContextAnalysis, SetRule, PositionPoint, MetricPoint,
 } from '../lib/analytics';
 import ContextComparison from '../components/ContextComparison';
@@ -27,8 +27,41 @@ import RecentSessions from '../components/RecentSessions';
 import StatsLegend from '../components/StatsLegend';
 import MetricChart from '../components/MetricChart';
 
-type PR = { maxWeight: number; maxReps: number; bestVol: number; sessionCount: number };
-type ExStats = { name: string; pr: PR; totalVol: number };
+type PRChip = { value: string; labelKey: string };
+type ExStats = { name: string; chips: PRChip[]; sessionCount: number; totalVol: number };
+
+/**
+ * Which records are worth showing depends on what the exercise measures.
+ * A held plank has no heaviest set and a bodyweight pull-up has no kilos —
+ * printing "0 kg" for those is noise, not a record.
+ */
+function prChipsFor(
+  trackingType: string,
+  pr: { maxWeight: number; maxReps: number; bestVol: number },
+): PRChip[] {
+  switch (trackingType) {
+    case 'time':
+      return [{ value: formatDuration(pr.maxReps), labelKey: 'maxDuration' }];
+    case 'bodyweight':
+      return [{ value: String(pr.maxReps), labelKey: 'maxReps' }];
+    case 'percent':
+      return [
+        { value: `${pr.maxWeight}%`, labelKey: 'maxPercent' },
+        { value: String(pr.maxReps), labelKey: 'maxReps' },
+      ];
+    case 'distance_time':
+      return [
+        { value: `${pr.maxWeight}km`, labelKey: 'maxDistance' },
+        { value: formatDuration(pr.maxReps), labelKey: 'maxDuration' },
+      ];
+    default:
+      return [
+        { value: `${pr.maxWeight}kg`, labelKey: 'maxWeight' },
+        { value: String(pr.maxReps), labelKey: 'maxReps' },
+        { value: String(pr.bestVol), labelKey: 'bestVol' },
+      ];
+  }
+}
 type ChartMode = 'e1rm' | 'byWeight' | 'context' | 'extras';
 type TrendMetric = 'slope' | 'blocks' | 'ewma';
 const TREND_ORDER: TrendMetric[] = ['slope', 'blocks', 'ewma'];
@@ -111,6 +144,8 @@ export default function StatsScreen() {
       exMap[row.exerciseName].rows.push(row);
     }
 
+    const trackingOf = new Map(allExercises.map(e => [e.name, e.trackingType]));
+
     const stats: ExStats[] = Object.entries(exMap).map(([name, data]) => {
       let maxWeight = 0, maxReps = 0, bestVol = 0, totalVol = 0;
       const weighted = liftsWeight(name);
@@ -124,7 +159,10 @@ export default function StatsScreen() {
       }
       return {
         name,
-        pr: { maxWeight, maxReps, bestVol: Math.round(bestVol), sessionCount: data.sessions.size },
+        chips: prChipsFor(trackingOf.get(name) ?? 'weight_reps', {
+          maxWeight, maxReps, bestVol: Math.round(bestVol),
+        }),
+        sessionCount: data.sessions.size,
         totalVol: Math.round(totalVol),
       };
     });
@@ -149,7 +187,13 @@ export default function StatsScreen() {
     // Progress data for each exercise (load all, expand on tap)
     const groupOf = new Map(allExercises.map(e => [e.name, e.muscleGroup]));
 
-    const topExercises = stats.slice(0, 10).map(e => e.name);
+    // Ranked by how often it was trained, not by volume: a plank or a pull-up
+    // has no kilos to sum, so a volume ranking pushed every one of them past
+    // the cut-off and they never got a chart at all.
+    const topExercises = [...stats]
+      .sort((a, b) => b.sessionCount - a.sessionCount || b.totalVol - a.totalVol)
+      .slice(0, 10)
+      .map(e => e.name);
     const progressData = await Promise.all(
       topExercises.map(async name => {
         const info = allExercises.find(e => e.name === name);
@@ -312,7 +356,10 @@ export default function StatsScreen() {
     }
   }
 
-  const maxVol = Math.max(...exStats.map(e => e.totalVol), 1);
+  // A time or bodyweight exercise has no kilos to sum, so it would sit here as
+  // an empty bar reading "0 kg" — that is a missing unit, not a small number
+  const volStats = exStats.filter(e => e.totalVol > 0);
+  const maxVol = Math.max(...volStats.map(e => e.totalVol), 1);
 
   /** Foldable heading: title, how much is hidden behind it, and a chevron. */
   const head = (key: SectionKey, label: string, count: number, first = false) => (
@@ -480,32 +527,26 @@ export default function StatsScreen() {
             <View key={ex.name} style={styles.prCard}>
               <Text style={styles.prName}>
                 {exerciseLabel(ex.name, t)}{'  '}
-                <Text style={styles.prSessions}>{ex.pr.sessionCount} {t('sessions')}</Text>
+                <Text style={styles.prSessions}>{ex.sessionCount} {t('sessions')}</Text>
               </Text>
               <View style={styles.prChips}>
-                <View style={styles.prChip}>
-                  <Text style={styles.prChipVal}>{ex.pr.maxWeight}kg</Text>
-                  <Text style={styles.prChipLabel}>{t('maxWeight')}</Text>
-                </View>
-                <View style={styles.prChip}>
-                  <Text style={styles.prChipVal}>{ex.pr.maxReps}</Text>
-                  <Text style={styles.prChipLabel}>{t('maxReps')}</Text>
-                </View>
-                <View style={styles.prChip}>
-                  <Text style={styles.prChipVal}>{ex.pr.bestVol}</Text>
-                  <Text style={styles.prChipLabel}>{t('bestVol')}</Text>
-                </View>
+                {ex.chips.map(chip => (
+                  <View key={chip.labelKey} style={styles.prChip}>
+                    <Text style={styles.prChipVal}>{chip.value}</Text>
+                    <Text style={styles.prChipLabel}>{t(chip.labelKey as any)}</Text>
+                  </View>
+                ))}
               </View>
             </View>
           ))
         ))}
 
         {/* ── Volume bars ── */}
-        {head('volume', t('totalVolume'), exStats.length)}
-        {open.volume && (exStats.length === 0 ? (
+        {head('volume', t('totalVolume'), volStats.length)}
+        {open.volume && (volStats.length === 0 ? (
           <Text style={styles.empty}>{t('noData')}</Text>
         ) : (
-          exStats.map(ex => (
+          volStats.map(ex => (
             <View key={ex.name} style={styles.volBar}>
               <View style={styles.volBarLabel}>
                 <Text style={styles.volBarName}>{exerciseLabel(ex.name, t)}</Text>

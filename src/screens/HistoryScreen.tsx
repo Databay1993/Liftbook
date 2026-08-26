@@ -6,12 +6,18 @@ import { useTranslation } from 'react-i18next';
 
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
-import { getHistory, deleteWorkout, HistoryRow, getExercisePositions } from '../storage/database';
+import {
+  getHistory, deleteWorkout, HistoryRow, getExercisePositions,
+  ExtraField, SessionSet,
+} from '../storage/database';
 import { exerciseLabel } from '../lib/exerciseName';
+import { formatSet } from '../lib/analytics';
 
 type GroupedExercise = {
   exerciseName: string;
-  sessions: { workoutId: number; date: string; sets: { reps: string; weight: string }[] }[];
+  trackingType: string;
+  extraFields: ExtraField[];
+  sessions: { workoutId: number; date: string; sets: SessionSet[] }[];
 };
 
 export default function HistoryScreen() {
@@ -49,7 +55,12 @@ export default function HistoryScreen() {
 
     for (const row of rows) {
       if (!map[row.exerciseName]) {
-        map[row.exerciseName] = { exerciseName: row.exerciseName, sessions: [] };
+        map[row.exerciseName] = {
+          exerciseName: row.exerciseName,
+          trackingType: row.trackingType,
+          extraFields: row.extraFields,
+          sessions: [],
+        };
       }
       const ex = map[row.exerciseName];
       let session = ex.sessions.find(s => s.workoutId === row.workoutId);
@@ -57,7 +68,9 @@ export default function HistoryScreen() {
         session = { workoutId: row.workoutId, date: row.date, sets: [] };
         ex.sessions.push(session);
       }
-      session.sets.push({ reps: row.reps, weight: row.weight });
+      session.sets.push({
+        reps: row.reps, weight: row.weight, side: row.side, extras: row.extras,
+      });
     }
 
     return Object.values(map);
@@ -125,11 +138,21 @@ export default function HistoryScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.chips}>
-                    {session.sets.map((s, i) => (
-                      <View key={i} style={styles.chip}>
-                        <Text style={styles.chipText}>{s.reps} × {s.weight} kg</Text>
-                      </View>
-                    ))}
+                    {session.sets.map((s, i) => {
+                      const extras = ex.extraFields
+                        .map(f => (s.extras?.[f.id] ? `${s.extras[f.id]}${f.unit}` : null))
+                        .filter(Boolean);
+                      return (
+                        <View key={i} style={styles.chip}>
+                          <Text style={styles.chipText}>
+                            {formatSet(s, ex.trackingType)}
+                            {extras.length > 0 && (
+                              <Text style={styles.chipExtra}> · {extras.join(' · ')}</Text>
+                            )}
+                          </Text>
+                        </View>
+                      );
+                    })}
                   </View>
                 </View>
               ))}
@@ -189,5 +212,6 @@ function makeStyles(c: Colors) {
       paddingVertical: 3,
     },
     chipText: { fontSize: 13, color: c.text },
+    chipExtra: { fontSize: 11, color: c.muted },
   });
 }
