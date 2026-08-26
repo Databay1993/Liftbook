@@ -303,6 +303,7 @@ export default {
   // Exercise management
   exercisesSection: 'Manage Exercises',
   exercisesCount: '{{count}} exercises',
+  sessionsCount: '{{count}} sessions',
   renameExercise: 'Rename',
   newExerciseNamePlaceholder: 'New name...',
   renameSuccess: 'Renamed ✓',

@@ -23,6 +23,14 @@ export default function HistoryScreen() {
   const [grouped, setGrouped] = useState<GroupedExercise[]>([]);
   /** Position of each exercise in each workout, keyed workoutId|name. */
   const [positions, setPositions] = useState<Map<string, { position: number; total: number }>>(new Map());
+  /** Names whose sessions are unfolded — everything starts closed. */
+  const [open, setOpen] = useState<Set<string>>(new Set());
+
+  const toggle = (name: string) => setOpen(prev => {
+    const next = new Set(prev);
+    next.has(name) ? next.delete(name) : next.add(name);
+    return next;
+  });
 
   useFocusEffect(useCallback(() => {
     load();
@@ -84,8 +92,18 @@ export default function HistoryScreen() {
         ) : (
           grouped.map(ex => (
             <View key={ex.exerciseName} style={styles.exBlock}>
-              <Text style={styles.exTitle}>{exerciseLabel(ex.exerciseName, t)}</Text>
-              {ex.sessions.map(session => (
+              <TouchableOpacity
+                style={styles.exHead}
+                onPress={() => toggle(ex.exerciseName)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.exTitle}>{exerciseLabel(ex.exerciseName, t)}</Text>
+                <Text style={styles.exCount}>
+                  {t('sessionsCount' as any, { count: ex.sessions.length })}
+                </Text>
+                <Text style={styles.exChevron}>{open.has(ex.exerciseName) ? '▾' : '▸'}</Text>
+              </TouchableOpacity>
+              {open.has(ex.exerciseName) && ex.sessions.map(session => (
                 <View key={session.workoutId} style={styles.sessionCard}>
                   <View style={styles.sessionHeader}>
                     <View style={styles.sessionMeta}>
@@ -138,8 +156,11 @@ function makeStyles(c: Colors) {
     content: { padding: 16 },
     pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 16 },
     emptyState: { textAlign: 'center', color: c.muted, paddingVertical: 40, fontSize: 14, lineHeight: 22 },
-    exBlock: { marginBottom: 24 },
+    exBlock: { marginBottom: 12 },
+    exHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 2 },
     exTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, letterSpacing: 1, color: c.accent, marginBottom: 8 },
+    exCount: { flex: 1, fontSize: 11, color: c.muted },
+    exChevron: { fontSize: 14, color: c.muted },
     sessionCard: {
       backgroundColor: c.surface,
       borderWidth: 1,

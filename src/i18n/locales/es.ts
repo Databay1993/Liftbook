@@ -302,6 +302,7 @@ export default {
   // Exercise management
   exercisesSection: 'Gestionar ejercicios',
   exercisesCount: '{{count}} ejercicios',
+  sessionsCount: '{{count}} sesiones',
   renameExercise: 'Renombrar',
   newExerciseNamePlaceholder: 'Nuevo nombre...',
   renameSuccess: 'Renombrado ✓',
