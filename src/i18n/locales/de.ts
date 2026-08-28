@@ -9,7 +9,7 @@ export default {
 
   // Home
   heroSub: 'Tracke deine Lifts. Brich deine Rekorde.',
-  readyToPush: 'BEREIT ZUM\nPUSHEN?',
+  readyToPush: 'BEREIT ZUM\nPUPSEN?',
   startWorkout: '+ WORKOUT STARTEN',
   workouts: 'Workouts',
   exercises: 'Übungen',
