@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -15,8 +15,6 @@ Notifications.setNotificationHandler({
     shouldSetBadge: false,
   }),
 });
-
-const NOTIF_ID_KEY = 'rest_timer_notif';
 
 /**
  * iOS silences app audio whenever the ring switch is flipped, which is
@@ -92,18 +90,35 @@ export function useTimer() {
       if (remaining <= 0) {
         clearInterval(intervalRef.current!);
         intervalRef.current = null;
-        cancelWakeNotif();
-        // Play beep sound directly — works in Expo Go
-        prepareAudio()
-          .then(() => Audio.Sound.createAsync(beepSound))
-          .then(({ sound }) => {
-            sound.playAsync();
-            sound.setOnPlaybackStatusUpdate(status => {
-              if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
-            });
-          })
-          .catch(() => {});
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+
+        const lateBy = Date.now() - (endAtRef.current ?? 0);
+        endAtRef.current = null;
+
+        // The in-app beep is only audible while the app is in front: iOS
+        // deactivates the audio session in the background but keeps
+        // JavaScript running for a grace period first, so this tick used to
+        // fire there, cancel the notification, and play into a dead session —
+        // removing the one alert that could still be heard. Anything not in
+        // the foreground is left to the notification.
+        //
+        // A tick that only ran because the app came back has a deadline
+        // minutes in the past; the notification already fired, so beeping now
+        // would be a second alert for a rest that is long over.
+        const audible = AppState.currentState === 'active' && lateBy < 5000;
+        if (audible) {
+          cancelWakeNotif();
+          // Play beep sound directly — works in Expo Go
+          prepareAudio()
+            .then(() => Audio.Sound.createAsync(beepSound))
+            .then(({ sound }) => {
+              sound.playAsync();
+              sound.setOnPlaybackStatusUpdate(status => {
+                if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
+              });
+            })
+            .catch(() => {});
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
         setTimeout(() => setSeconds(null), 1500);
       }
     }, 500);
