@@ -23,7 +23,7 @@ import {
 } from '../lib/analytics';
 import { loadSetRule } from '../lib/setRule';
 import { useTimer } from '../hooks/useTimer';
-import { exerciseLabel } from '../lib/exerciseName';
+import { exerciseLabel, matchesExercise } from '../lib/exerciseName';
 import TimerBubble from '../components/TimerBubble';
 import Toast from '../components/Toast';
 import WorkoutSummary from '../components/WorkoutSummary';
@@ -572,7 +572,7 @@ export default function WorkoutScreen({ navigation }: any) {
     ]);
   }
 
-  const filtered = allExercises.filter(e => e.name.toLowerCase().includes(exSearch.toLowerCase()));
+  const filtered = allExercises.filter(e => matchesExercise(e.name, exSearch, t));
 
   // ── No active workout ────────────────────────────────────
   if (!activeWorkout) {

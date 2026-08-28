@@ -13,7 +13,7 @@ import {
   getAllExercises, createTemplate, updateTemplate, addCustomExercise, Template,
 } from '../storage/database';
 import Toast from '../components/Toast';
-import { exerciseLabel } from '../lib/exerciseName';
+import { exerciseLabel, matchesExercise } from '../lib/exerciseName';
 
 const ITEM_H = 60;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -167,7 +167,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
     }
   }
 
-  const filtered = allExercises.filter(e => e.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = allExercises.filter(e => matchesExercise(e.name, search, t));
   const canSave  = !!name.trim() && selectedExercises.length > 0;
 
   return (
