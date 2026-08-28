@@ -428,6 +428,24 @@ export async function initDb() {
     }
   });
 
+  // The SZ bar carries a tag reading 12 kg, not the 15 kg every entry was
+  // logged with, so the whole history of that exercise sits 3 kg too high.
+  // Corrected in the sets themselves rather than at display time: e1RM,
+  // trends, records and volume all read straight from here, and a correction
+  // applied in one of them would leave the others disagreeing.
+  await runOnce(db, 'sz-bar-12kg-1', async () => {
+    const rows = await db.getAllAsync<{ id: number; weight: string }>(
+      "SELECT id, weight FROM sets WHERE exercise_name = 'SZ-Curl'",
+    );
+    for (const row of rows) {
+      const value = parseFloat(String(row.weight).replace(',', '.'));
+      // Only a total that actually included the bar can lose the 3 kg
+      if (!isFinite(value) || value <= 3) continue;
+      const corrected = Math.round((value - 3) * 100) / 100;
+      await db.runAsync('UPDATE sets SET weight = ? WHERE id = ?', String(corrected), row.id);
+    }
+  });
+
   // Shipping the two machines above created a second entry next to the
   // hand-typed spelling, so the same machine had two histories. Fold the
   // typed one into the default and keep every logged set.
