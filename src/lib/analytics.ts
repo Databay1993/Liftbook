@@ -506,6 +506,8 @@ export type RepsEstimate = {
   preceding: string[];
   /** Date of the session used, when the estimate rests on a single one. */
   sourceDate: string | null;
+  /** The e1RM the estimate was read off, so a weight can be derived back. */
+  reference: number;
 };
 
 /**
@@ -543,6 +545,7 @@ export function estimateReps(
       contextMatched: true,
       preceding: matching.preceding,
       sourceDate: null,   // a median of up to three sessions, not one date
+      reference: reference!,
     };
   }
 
@@ -564,7 +567,23 @@ export function estimateReps(
     contextMatched: false,
     preceding: latest.group.preceding,
     sourceDate: latest.point.date,
+    reference: latest.point.e1rm,
   };
+}
+
+/** Rep counts the reverse hint is shown for — the classic strength anchors. */
+export const REP_TARGETS = [5, 8, 12];
+
+/**
+ * The load a rep count should be good for — Epley read backwards.
+ *
+ * The forward hint answers "this weight, how many reps"; on its own that
+ * leaves the more useful gym question unanswered, which is what to load on
+ * the bar for the set you actually intend to do. Rounded to half a kilo,
+ * since that is the smallest plate anyone stacks.
+ */
+export function weightForReps(reference: number, reps: number): number {
+  return Math.round((reference / (1 + reps / 30)) * 2) / 2;
 }
 
 // ── Extra measurements ─────────────────────────────────────────

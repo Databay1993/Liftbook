@@ -53,6 +53,7 @@ export default {
   hintFresh: 'en fresco · media de {{count}}',
   hintAfter: 'tras {{list}} · media {{count}}',
   hintLastSession: 'última sesión {{date}}',
+  hintTarget: '{{reps}}× {{weight}}kg',
 
   extraFieldsTitle: 'Valores adicionales',
   extraFieldsHint: 'Números que este ejercicio aporta además de carga y repeticiones — por ejemplo la potencia pico en una Keiser. Se aplica a todas las sesiones futuras de este ejercicio.',
@@ -237,7 +238,7 @@ export default {
   legendContextBody: 'Remo después de dominadas no es lo mismo que remo al empezar: la espalda ya está cansada. Esta vista agrupa tus sesiones según qué ejercicios del mismo grupo muscular vinieron antes, y solo compara dentro de un grupo. Otros grupos musculares no cuentan — tras la prensa de piernas tu espalda está tan fresca como al principio. El orden entre los ejercicios previos se ignora, si no quedarían muy pocas sesiones por grupo. El ejercicio necesita un grupo muscular asignado.',
 
   legendHintTitle: 'La sugerencia de repeticiones',
-  legendHintBody: 'Al escribir un peso durante el entrenamiento aparece debajo, en tenue, cuántas repeticiones cabe esperar. Se basa en tus últimas tres sesiones de ese ejercicio — en concreto las tres realizadas con la misma fatiga previa que hoy. Así, remo después de dominadas se compara con remo después de dominadas, no con remo al empezar. Se toma el valor central de los tres, para que un dato atípico no fije la expectativa.\n\nUn * tras el número indica que aún no hay sesiones con el orden de hoy; la estimación viene entonces de tu contexto más frecuente y es más imprecisa.',
+  legendHintBody: 'Al escribir un peso durante el entrenamiento aparece debajo, en tenue, cuántas repeticiones cabe esperar. Se basa en tus últimas tres sesiones de ese ejercicio — en concreto las tres realizadas con la misma fatiga previa que hoy. Así, remo después de dominadas se compara con remo después de dominadas, no con remo al empezar. Se toma el valor central de los tres, para que un dato atípico no fije la expectativa.\n\nUn * tras el número indica que aún no hay sesiones con el orden de hoy; la estimación viene entonces de tu contexto más frecuente y es más imprecisa.\n\nDebajo aparece el mismo cálculo al revés: con qué peso caben 5, 8 y 12 repeticiones. Misma base y mismo contexto, solo que la pregunta se invierte, porque en el gimnasio sueles tener decididas las repeticiones y lo que queda abierto es la carga.',
 
   legendRecentTitle: 'Últimas sesiones',
   legendRecentBody: 'Tus dos sesiones más recientes con todos los ejercicios y series — pensado para mirar atrás al decidir qué toca hoy.',

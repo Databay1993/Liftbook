@@ -70,6 +70,7 @@ export default {
   hintFresh: 'frisch · Ø{{count}} Trainings',
   hintAfter: 'nach {{list}} · Ø{{count}}',
   hintLastSession: 'letztes Training {{date}}',
+  hintTarget: '{{reps}}× {{weight}}kg',
 
   extraFieldsTitle: 'Zusatzwerte',
   extraFieldsHint: 'Zahlen, die diese Übung außer Gewicht und Wiederholungen liefert — etwa Peak Power an der Keiser. Gilt ab sofort für jedes Training dieser Übung.',
@@ -238,7 +239,7 @@ export default {
   legendContextBody: 'Rudern nach Klimmzügen ist nicht dasselbe wie Rudern zu Beginn: Der Rücken ist schon müde. Diese Ansicht gruppiert deine Trainings danach, welche Übungen derselben Muskelgruppe vorher dran waren, und vergleicht nur innerhalb einer Gruppe. Übungen anderer Muskelgruppen zählen nicht — nach Beinpresse ist dein Rücken so frisch wie am Anfang. Die Reihenfolge untereinander wird ignoriert, sonst blieben zu wenige Trainings je Gruppe übrig. Voraussetzung ist, dass die Übung eine Muskelgruppe zugeordnet hat.',
 
   legendHintTitle: 'Der Wiederholungs-Hinweis',
-  legendHintBody: 'Tippst du im Workout ein Gewicht ein, steht darunter blass, wie viele Wiederholungen dabei zu erwarten sind. Grundlage sind deine letzten drei Trainings dieser Übung — genauer: die drei, die unter derselben Vorermüdung stattfanden wie heute. Rudern nach Klimmzügen wird also mit Rudern nach Klimmzügen verglichen, nicht mit Rudern zu Beginn. Genommen wird der mittlere der drei Werte, damit ein einzelner Ausreißer die Erwartung nicht setzt.\n\nSteht ein * hinter der Zahl, gab es für die heutige Reihenfolge noch keine Trainings — dann stammt die Schätzung aus deinem häufigsten Kontext und ist entsprechend ungenauer.',
+  legendHintBody: 'Tippst du im Workout ein Gewicht ein, steht darunter blass, wie viele Wiederholungen dabei zu erwarten sind. Grundlage sind deine letzten drei Trainings dieser Übung — genauer: die drei, die unter derselben Vorermüdung stattfanden wie heute. Rudern nach Klimmzügen wird also mit Rudern nach Klimmzügen verglichen, nicht mit Rudern zu Beginn. Genommen wird der mittlere der drei Werte, damit ein einzelner Ausreißer die Erwartung nicht setzt.\n\nSteht ein * hinter der Zahl, gab es für die heutige Reihenfolge noch keine Trainings — dann stammt die Schätzung aus deinem häufigsten Kontext und ist entsprechend ungenauer.\n\nDarunter steht dieselbe Rechnung rückwärts: bei welchem Gewicht 5, 8 und 12 Wiederholungen zu erwarten sind. Gleiche Grundlage, gleicher Kontext — nur die Frage ist umgedreht, weil im Gym meistens feststeht, wie viele Wiederholungen du machen willst, und offen ist, was auf die Stange kommt.',
 
   legendRecentTitle: 'Letzte Trainings',
   legendRecentBody: 'Die zwei jüngsten Einheiten mit allen Übungen und Sätzen — gedacht als Blick zurück für die Frage, was heute dran ist.',

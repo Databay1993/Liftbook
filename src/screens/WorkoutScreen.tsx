@@ -19,6 +19,7 @@ import {
 } from '../storage/database';
 import {
   buildE1RMSeries, analyzeContexts, contextKey, estimateReps, formatSet, formatDuration,
+  weightForReps, REP_TARGETS,
   ContextAnalysis, RepsEstimate,
 } from '../lib/analytics';
 import { loadSetRule } from '../lib/setRule';
@@ -853,6 +854,14 @@ export default function WorkoutScreen({ navigation }: any) {
                                             : '',
                                         })}
                                   </Text>
+                                  <Text style={styles.hintTargets} numberOfLines={1}>
+                                    {REP_TARGETS
+                                      .map(r => t('hintTarget', {
+                                        reps: r,
+                                        weight: weightForReps(hint.reference, r),
+                                      }))
+                                      .join('  ·  ')}
+                                  </Text>
                                 </View>
                               )}
                             </View>
@@ -1380,6 +1389,7 @@ function makeStyles(c: Colors) {
     modalDoneTxt: { color: '#000', fontSize: 15, fontWeight: '700' },
     hintWrap: { alignItems: 'center', maxWidth: 96 },
     hintSource: { fontSize: 8, color: c.muted, marginTop: 1, textAlign: 'center' },
+    hintTargets: { fontSize: 8, color: c.muted, opacity: 0.85, marginTop: 1, textAlign: 'center' },
     checkBtn: { width: 38, height: 38, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
     checkBtnDone: { backgroundColor: c.accent, borderColor: c.accent },
     checkBtnText: { color: c.muted, fontSize: 16, fontWeight: '700' },
