@@ -854,14 +854,19 @@ export default function WorkoutScreen({ navigation }: any) {
                                             : '',
                                         })}
                                   </Text>
-                                  <Text style={styles.hintTargets} numberOfLines={1}>
-                                    {REP_TARGETS
-                                      .map(r => t('hintTarget', {
-                                        reps: r,
-                                        weight: weightForReps(hint.reference, r),
-                                      }))
-                                      .join('  ·  ')}
-                                  </Text>
+                                  {/* Once per exercise, not once per set: the
+                                      line is the same on every row and only
+                                      makes the card harder to read repeated */}
+                                  {idx === 0 && (
+                                    <Text style={styles.hintTargets} numberOfLines={1}>
+                                      {REP_TARGETS
+                                        .map(r => t('hintTarget', {
+                                          reps: r,
+                                          weight: weightForReps(hint.reference, r),
+                                        }))
+                                        .join('  ·  ')}
+                                    </Text>
+                                  )}
                                 </View>
                               )}
                             </View>
