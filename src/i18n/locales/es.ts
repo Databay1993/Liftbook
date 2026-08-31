@@ -76,7 +76,7 @@ export default {
   alreadyAdded: 'Ya agregado',
   chooseExercise: 'Elige ejercicio',
   search: 'Buscar...',
-  newExercise: 'NUEVO EJERCICIO',
+  createExercise: '+ Crear «{{name}}»',
   noExercisesLogged: 'Sin ejercicios registrados',
   reps: 'Reps',
   kg: 'kg',

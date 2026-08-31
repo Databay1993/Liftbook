@@ -39,7 +39,7 @@ export default {
   alreadyAdded: 'Bereits hinzugefügt',
   chooseExercise: 'Übung wählen',
   search: 'Suchen...',
-  newExercise: 'NEUE ÜBUNG',
+  createExercise: '+ „{{name}}" neu anlegen',
   noExercisesLogged: 'Keine Übungen erfasst',
   reps: 'Wdh.',
   kg: 'kg',

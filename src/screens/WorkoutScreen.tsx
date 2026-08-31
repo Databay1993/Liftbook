@@ -78,7 +78,6 @@ export default function WorkoutScreen({ navigation }: any) {
   const [exercises, setExercises] = useState<WExercise[]>([]);
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
-  const [newExName, setNewExName] = useState('');
   const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]>([]);
   const [contexts, setContexts] = useState<Record<string, ContextAnalysis>>({});
   const [lastSessions, setLastSessions] = useState<Record<string, {
@@ -191,16 +190,15 @@ export default function WorkoutScreen({ navigation }: any) {
     Keyboard.dismiss();
     setShowAddEx(false);
     setExSearch('');
-    setNewExName('');
   }
 
-  async function handleCreateAndAdd() {
-    const name = newExName.trim();
+  async function handleCreateAndAdd(raw: string) {
+    const name = raw.trim();
     if (!name) return;
     try {
       await addCustomExercise(name);
       await loadExercises();
-      setNewExName('');
+      setExSearch('');
       handleAddExercise(name);
     } catch {
       showToast(t('exerciseExists'));
@@ -574,6 +572,15 @@ export default function WorkoutScreen({ navigation }: any) {
   }
 
   const filtered = allExercises.filter(e => matchesExercise(e.name, exSearch, t));
+
+  // Creating an exercise reuses the search box instead of a second field at
+  // the bottom of the sheet: the search is autofocused, so the keyboard is
+  // always up here and anything below the list is covered by it.
+  const searchTerm = exSearch.trim();
+  const canCreate = searchTerm.length > 0 && !allExercises.some(e =>
+    e.name.toLowerCase() === searchTerm.toLowerCase() ||
+    exerciseLabel(e.name, t).toLowerCase() === searchTerm.toLowerCase()
+  );
 
   // ── No active workout ────────────────────────────────────
   if (!activeWorkout) {
@@ -1062,7 +1069,8 @@ export default function WorkoutScreen({ navigation }: any) {
                 value={exSearch}
                 onChangeText={setExSearch}
                 autoFocus
-                returnKeyType="search"
+                returnKeyType="done"
+                onSubmitEditing={() => { if (canCreate) handleCreateAndAdd(exSearch); }}
               />
             </View>
 
@@ -1071,7 +1079,18 @@ export default function WorkoutScreen({ navigation }: any) {
               keyExtractor={item => item.name}
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
+              automaticallyAdjustKeyboardInsets
               contentContainerStyle={{ paddingHorizontal: 16 }}
+              ListHeaderComponent={canCreate ? (
+                <TouchableOpacity
+                  style={styles.createExItem}
+                  onPress={() => handleCreateAndAdd(exSearch)}
+                >
+                  <Text style={styles.createExText}>
+                    {t('createExercise', { name: exSearch.trim() })}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
               renderItem={({ item }: { item: typeof allExercises[0] }) => {
                 const added = exercises.find(e => e.name === item.name);
                 return (
@@ -1086,23 +1105,6 @@ export default function WorkoutScreen({ navigation }: any) {
               }}
             />
 
-            <View style={styles.newExSection}>
-              <Text style={styles.newExLabel}>{t('newExercise')}</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  placeholder={t('exerciseName')}
-                  placeholderTextColor={colors.muted}
-                  value={newExName}
-                  onChangeText={setNewExName}
-                  onSubmitEditing={handleCreateAndAdd}
-                  returnKeyType="done"
-                />
-                <TouchableOpacity style={styles.addNewExBtn} onPress={handleCreateAndAdd}>
-                  <Text style={styles.addNewExText}>+ {t('add')}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           </KeyboardAvoidingView>
         </SafeAreaView>
       </Modal>
@@ -1455,9 +1457,11 @@ function makeStyles(c: Colors) {
     pickerSearchWrap: { padding: 16, borderBottomWidth: 1, borderBottomColor: c.border },
     closeSheetBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
     closeSheetText: { color: c.muted, fontSize: 14 },
-    newExSection: { borderTopWidth: 1, borderTopColor: c.border, padding: 16, backgroundColor: c.surface },
-    newExLabel: { fontFamily: 'BebasNeue_400Regular', fontSize: 14, letterSpacing: 1, color: c.muted, marginBottom: 8 },
-    inputRow: { flexDirection: 'row', gap: 8 },
+    createExItem: {
+      paddingVertical: 13, paddingHorizontal: 4,
+      borderBottomWidth: 1, borderBottomColor: c.border,
+    },
+    createExText: { fontSize: 15, color: c.accent, fontWeight: '600' },
     addNewExBtn: { backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border, paddingHorizontal: 14, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
     addNewExText: { color: c.text, fontSize: 14 },
     textInput: {

@@ -39,7 +39,7 @@ export default {
   alreadyAdded: 'Already added',
   chooseExercise: 'Choose Exercise',
   search: 'Search...',
-  newExercise: 'NEW EXERCISE',
+  createExercise: '+ Create “{{name}}”',
   noExercisesLogged: 'No exercises logged',
   reps: 'Reps',
   kg: 'kg',
