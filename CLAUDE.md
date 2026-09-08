@@ -1,15 +1,22 @@
 # Liftbook
 
-React Native / Expo (SDK 54) workout tracker. TypeScript, expo-sqlite for local
+React Native / Expo (SDK 57) workout tracker. TypeScript, expo-sqlite for local
 persistence, React Navigation bottom tabs, i18n in DE/EN/ES.
 
 ## Deploying changes to the phone
 
 The user runs Liftbook on **two devices at once**: an iPhone through Expo Go,
 and an Android phone with an installed APK from `eas build --profile preview`.
-Both sit on the same `preview` branch/channel at runtime version `1.0.0`, so a
-single `eas update` reaches both — always publish for both, never one platform
-only.
+Both sit on the same `preview` branch/channel, so a single `eas update` reaches
+both — always publish for both, never one platform only.
+
+**Runtime version is `2.0.0` since the SDK 57 upgrade.** Expo Go on iOS only
+ever supports the newest SDK and auto-updated to 57, which locked the iPhone
+out of the SDK 54 project — upgrading was the only way back in, and it is a
+native change. The APK the user has installed was built against SDK 54 at
+runtime version `1.0.0`; bumping the version is what stops it downloading an
+SDK 57 bundle it cannot run. It therefore receives no further updates until a
+new APK is built and installed.
 
 Updates are loaded from the published EAS Update, not from a local dev server.
 There is no iOS standalone build and no Apple Developer account. Do not tell
@@ -29,7 +36,7 @@ launch downloads the update, the second shows it.
 **After every push, tell the user the build number that push produced.** It
 is the commit count (`git rev-list --count HEAD`), stamped into the bundle by
 `scripts/generate-version.js` at publish time and shown in Settings → About
-as "Version 1.0.0 · Build 36". Naming it lets them check on the phone whether
+as "Version 2.0.0 · Build 61". Naming it lets them check on the phone whether
 the update actually arrived.
 
 Alternatively `.github/workflows/eas-update.yml` publishes the same update
@@ -44,14 +51,16 @@ prompt. Builds count against the free quota, so never trigger it on push.
 
 Constraints this implies:
 
-- Keep `app.json` `version` at `1.0.0` — the installed runtime version is
-  `1.0.0` and updates only reach the phone when they match.
+- Change `app.json` `version` only when the native side changes. It drives the
+  runtime version, and an update only reaches a build whose runtime version
+  matches — so a bump deliberately cuts off every already-installed build.
 - **JS-only changes.** Anything requiring new native code (a new native module,
   changed config plugins, custom notification sounds) will NOT arrive over the
-  air. Only packages already present at build time work — `expo-av`,
+  air. Only packages already present at build time work — `expo-audio`,
   `expo-sqlite`, `expo-notifications`, `expo-haptics` are all in.
 - Notification sounds don't fire in Expo Go. For audible feedback use
-  `expo-av` (`Audio.Sound.createAsync`) directly — see `src/hooks/useTimer.ts`.
+  `expo-audio` (`createAudioPlayer`) directly — see `src/hooks/useTimer.ts`.
+  `expo-av` is gone from SDK 55 onwards; do not reach for it.
 
 ## Layout
 

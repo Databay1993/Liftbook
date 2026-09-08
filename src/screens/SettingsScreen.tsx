@@ -17,7 +17,7 @@ import {
   updateExerciseMuscleGroup, MUSCLE_GROUPS,
   getExerciseUsage, deleteExerciseCompletely,
 } from '../storage/database';
-import { BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
+import { APP_VERSION, BUILD_NUMBER, COMMIT, BUILT_AT } from '../generated/version';
 import { loadSetRule, saveSetRule } from '../lib/setRule';
 import type { SetRule } from '../lib/analytics';
 import Toast from '../components/Toast';
@@ -345,7 +345,7 @@ export default function SettingsScreen() {
         <View style={styles.aboutCard}>
           <Text style={styles.aboutAppName}>Liftbook</Text>
           <Text style={styles.aboutVersion}>
-            {t('version')} 1.0.0 · {t('build')} {BUILD_NUMBER}
+            {t('version')} {APP_VERSION} · {t('build')} {BUILD_NUMBER}
           </Text>
           <Text style={styles.aboutBuildMeta}>
             {new Date(BUILT_AT).toLocaleString(undefined, {

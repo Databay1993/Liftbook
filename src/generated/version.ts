@@ -2,6 +2,7 @@
 // Regenerated on every publish; the checked-in values are only a fallback
 // for local development.
 
-export const BUILD_NUMBER = 19;
-export const COMMIT = 'aa13934';
-export const BUILT_AT = '2026-08-22T13:18:38.330Z';
+export const APP_VERSION = '2.0.0';
+export const BUILD_NUMBER = 60;
+export const COMMIT = '54f3420';
+export const BUILT_AT = '2026-09-08T11:36:20.486Z';

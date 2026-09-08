@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Platform, AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import beepSound from '../../assets/sounds/liftbook_beep.wav';
 
 // Show notifications even when app is foregrounded
@@ -29,15 +29,29 @@ function prepareAudio(): Promise<void> {
   const existing = audioSession;
   if (existing) return existing;
 
-  const created = Audio.setAudioModeAsync({
-    playsInSilentModeIOS: true,
-    staysActiveInBackground: false,
-    shouldDuckAndroid: true,      // pause music briefly instead of talking over it
-    playThroughEarpieceAndroid: false,
+  const created = setAudioModeAsync({
+    playsInSilentMode: true,
+    shouldPlayInBackground: false,
+    interruptionMode: 'duckOthers',   // lower music briefly instead of talking over it
   }).catch(() => { /* keep going; the haptic still fires */ });
 
   audioSession = created;
   return created;
+}
+
+/**
+ * One player for the beep, kept for the life of the app and rewound before
+ * each use. Building a fresh one per rest leaks a native object every set,
+ * and the file is a few kilobytes that may as well stay decoded.
+ */
+let beepPlayer: AudioPlayer | null = null;
+function playBeep(): void {
+  prepareAudio()
+    .then(() => {
+      if (!beepPlayer) beepPlayer = createAudioPlayer(beepSound);
+      return beepPlayer.seekTo(0).then(() => beepPlayer!.play());
+    })
+    .catch(() => { /* the haptic and the notification still fire */ });
 }
 
 export function useTimer() {
@@ -107,16 +121,7 @@ export function useTimer() {
         const audible = AppState.currentState === 'active' && lateBy < 5000;
         if (audible) {
           cancelWakeNotif();
-          // Play beep sound directly — works in Expo Go
-          prepareAudio()
-            .then(() => Audio.Sound.createAsync(beepSound))
-            .then(({ sound }) => {
-              sound.playAsync();
-              sound.setOnPlaybackStatusUpdate(status => {
-                if (status.isLoaded && status.didJustFinish) sound.unloadAsync();
-              });
-            })
-            .catch(() => {});
+          playBeep();   // audible in Expo Go, unlike a notification sound
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
         }
         setTimeout(() => setSeconds(null), 1500);
