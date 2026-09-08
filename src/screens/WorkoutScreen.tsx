@@ -18,7 +18,7 @@ import {
   getExerciseSets, getWorkoutCompositions, updateExerciseExtraFields, ExtraField,
 } from '../storage/database';
 import {
-  buildE1RMSeries, analyzeContexts, contextKey, estimateReps, formatSet, formatDuration,
+  buildE1RMSeries, analyzeContexts, contextKey, estimateReps, formatSetWithExtras, formatDuration,
   weightForReps, REP_TARGETS,
   ContextAnalysis, RepsEstimate,
 } from '../lib/analytics';
@@ -325,15 +325,12 @@ export default function WorkoutScreen({ navigation }: any) {
     if (filled.length === 0) return t('noSetsYet');
     const done = ex.sets.filter(s => s.isDone).length;
     const first = filled[0];
-    const detail = formatSet(
+    const detail = formatSetWithExtras(
       { reps: first.reps, weight: first.weight, side: first.side ?? null, extras: first.extras ?? {} },
       ex.trackingType,
+      ex.extraFields,
     );
-    const extras = ex.extraFields
-      .map(f => first.extras?.[f.id] ? `${first.extras[f.id]}${f.unit}` : null)
-      .filter(Boolean)
-      .join(' ');
-    return `${filled.length} ${t('sets')} · ${detail}${extras ? ` · ${extras}` : ''}${done > 0 ? ` · ${done} ✓` : ''}`;
+    return `${filled.length} ${t('sets')} · ${detail}${done > 0 ? ` · ${done} ✓` : ''}`;
   }
 
   function addSet(exName: string) {
@@ -778,10 +775,12 @@ export default function WorkoutScreen({ navigation }: any) {
                   <View style={styles.lastChips}>
                     {last.sets.map((s, i) => {
                       // One formatter for the whole app, so percent keeps
-                      // reading its value off the load axis everywhere
-                      const label = `S${i + 1}: ${formatSet(
+                      // reading its value off the load axis everywhere — and
+                      // last week's watts show up next to last week's kilos
+                      const label = `S${i + 1}: ${formatSetWithExtras(
                         { reps: s.reps, weight: s.weight, side: s.side ?? null, extras: s.extras ?? {} },
                         ex.trackingType,
+                        ex.extraFields,
                       )}`;
                       return (
                         <View key={i} style={styles.lastChip}>

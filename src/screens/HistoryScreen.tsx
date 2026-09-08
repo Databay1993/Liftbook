@@ -11,7 +11,7 @@ import {
   ExtraField, SessionSet,
 } from '../storage/database';
 import { exerciseLabel } from '../lib/exerciseName';
-import { formatSet } from '../lib/analytics';
+import { formatSetWithExtras } from '../lib/analytics';
 
 type GroupedExercise = {
   exerciseName: string;
@@ -138,21 +138,13 @@ export default function HistoryScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.chips}>
-                    {session.sets.map((s, i) => {
-                      const extras = ex.extraFields
-                        .map(f => (s.extras?.[f.id] ? `${s.extras[f.id]}${f.unit}` : null))
-                        .filter(Boolean);
-                      return (
-                        <View key={i} style={styles.chip}>
-                          <Text style={styles.chipText}>
-                            {formatSet(s, ex.trackingType)}
-                            {extras.length > 0 && (
-                              <Text style={styles.chipExtra}> · {extras.join(' · ')}</Text>
-                            )}
-                          </Text>
-                        </View>
-                      );
-                    })}
+                    {session.sets.map((s, i) => (
+                      <View key={i} style={styles.chip}>
+                        <Text style={styles.chipText}>
+                          {formatSetWithExtras(s, ex.trackingType, ex.extraFields)}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </View>
               ))}
@@ -212,6 +204,5 @@ function makeStyles(c: Colors) {
       paddingVertical: 3,
     },
     chipText: { fontSize: 13, color: c.text },
-    chipExtra: { fontSize: 11, color: c.muted },
   });
 }

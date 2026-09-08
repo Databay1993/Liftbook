@@ -651,27 +651,34 @@ export function formatSet(set: SessionSet, trackingType: string): string {
 }
 
 /**
- * All sets of an exercise as a single line: `25kg × 13, 30kg × 7`.
- * Extra measurements are appended per set, labelled by their unit where one
- * was given, so a line stays readable without repeating field names.
+ * One set with whatever else was measured on it: `130kg × 6 (1409W)`.
+ *
+ * Labelled by unit rather than field name — the field names are already on
+ * the inputs that produced them, and repeating "Peak Power" on every set
+ * costs more room than it explains.
  */
+export function formatSetWithExtras(
+  set: SessionSet,
+  trackingType: string,
+  extraFields: { id: string; label: string; unit: string }[] = [],
+): string {
+  const base = formatSet(set, trackingType);
+  const extras = extraFields
+    .map(f => {
+      const value = set.extras?.[f.id];
+      return value ? `${value}${f.unit ? f.unit : ''}` : null;
+    })
+    .filter(Boolean);
+  return extras.length > 0 ? `${base} (${extras.join(', ')})` : base;
+}
+
+/** All sets of an exercise as a single line: `25kg × 13, 30kg × 7`. */
 export function summarizeSets(
   sets: SessionSet[],
   trackingType: string,
   extraFields: { id: string; label: string; unit: string }[] = [],
 ): string {
-  return sets
-    .map(s => {
-      const base = formatSet(s, trackingType);
-      const extras = extraFields
-        .map(f => {
-          const value = s.extras?.[f.id];
-          return value ? `${value}${f.unit ? f.unit : ''}` : null;
-        })
-        .filter(Boolean);
-      return extras.length > 0 ? `${base} (${extras.join(', ')})` : base;
-    })
-    .join(', ');
+  return sets.map(s => formatSetWithExtras(s, trackingType, extraFields)).join(', ');
 }
 
 /**
