@@ -87,6 +87,10 @@ export default {
   ofTotal: 'of {{total}}',
   history: 'History',
   noHistory: 'No workouts yet.\nStart your first session!',
+  editSetTitle: 'Edit set',
+  editSetHint: 'Tap a set to correct it',
+  deleteSetTitle: 'Delete set?',
+  deleteSetBody: 'Only this one set is removed.',
 
   // Stats
   stats: 'Stats',

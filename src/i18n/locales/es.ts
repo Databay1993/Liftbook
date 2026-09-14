@@ -86,6 +86,10 @@ export default {
   ofTotal: 'de {{total}}',
   history: 'Historial',
   noHistory: 'Sin entrenamientos aún.\n¡Comienza tu primera sesión!',
+  editSetTitle: 'Editar serie',
+  editSetHint: 'Toca una serie para corregirla',
+  deleteSetTitle: '¿Eliminar la serie?',
+  deleteSetBody: 'Solo se elimina esta serie.',
 
   // Stats
   stats: 'Estadísticas',

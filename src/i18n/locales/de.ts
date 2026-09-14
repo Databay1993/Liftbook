@@ -87,6 +87,10 @@ export default {
   ofTotal: 'von {{total}}',
   history: 'Verlauf',
   noHistory: 'Noch kein Workout.\nStarte dein erstes Training!',
+  editSetTitle: 'Satz bearbeiten',
+  editSetHint: 'Satz antippen zum Korrigieren',
+  deleteSetTitle: 'Satz löschen?',
+  deleteSetBody: 'Nur dieser eine Satz wird entfernt.',
 
   // Stats
   stats: 'Statistiken',

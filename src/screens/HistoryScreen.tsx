@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -7,17 +10,31 @@ import { useTranslation } from 'react-i18next';
 import { Colors } from '../theme';
 import { useTheme } from '../context/ThemeContext';
 import {
-  getHistory, deleteWorkout, HistoryRow, getExercisePositions,
-  ExtraField, SessionSet,
+  getHistory, deleteWorkout, updateSet, deleteSet, HistoryRow,
+  getExercisePositions, ExtraField, SessionSet,
 } from '../storage/database';
 import { exerciseLabel } from '../lib/exerciseName';
 import { formatSetWithExtras } from '../lib/analytics';
+
+/** A logged set plus the id needed to write a correction back to it. */
+type EditableSet = SessionSet & { setId: number };
 
 type GroupedExercise = {
   exerciseName: string;
   trackingType: string;
   extraFields: ExtraField[];
-  sessions: { workoutId: number; date: string; sets: SessionSet[] }[];
+  sessions: { workoutId: number; date: string; sets: EditableSet[] }[];
+};
+
+/** The set currently open in the edit sheet, with its draft values. */
+type Editing = {
+  setId: number;
+  exerciseName: string;
+  trackingType: string;
+  extraFields: ExtraField[];
+  reps: string;
+  weight: string;
+  extras: Record<string, string>;
 };
 
 export default function HistoryScreen() {
@@ -31,6 +48,8 @@ export default function HistoryScreen() {
   const [positions, setPositions] = useState<Map<string, { position: number; total: number }>>(new Map());
   /** Names whose sessions are unfolded — everything starts closed. */
   const [open, setOpen] = useState<Set<string>>(new Set());
+
+  const [editing, setEditing] = useState<Editing | null>(null);
 
   const toggle = (name: string) => setOpen(prev => {
     const next = new Set(prev);
@@ -69,11 +88,50 @@ export default function HistoryScreen() {
         ex.sessions.push(session);
       }
       session.sets.push({
+        setId: row.setId,
         reps: row.reps, weight: row.weight, side: row.side, extras: row.extras,
       });
     }
 
     return Object.values(map);
+  }
+
+  function openEdit(ex: GroupedExercise, set: EditableSet) {
+    setEditing({
+      setId: set.setId,
+      exerciseName: ex.exerciseName,
+      trackingType: ex.trackingType,
+      extraFields: ex.extraFields,
+      reps: set.reps,
+      weight: set.weight,
+      extras: { ...set.extras },
+    });
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    await updateSet(editing.setId, {
+      reps: editing.reps.trim(),
+      weight: editing.weight.trim(),
+      extras: editing.extras,
+    });
+    setEditing(null);
+    load();
+  }
+
+  function confirmDeleteSet() {
+    if (!editing) return;
+    const setId = editing.setId;
+    Alert.alert(t('deleteSetTitle'), t('deleteSetBody'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'), style: 'destructive', onPress: async () => {
+          await deleteSet(setId);
+          setEditing(null);
+          load();
+        },
+      },
+    ]);
   }
 
   async function handleDelete(workoutId: number) {
@@ -99,6 +157,7 @@ export default function HistoryScreen() {
 
       <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}>
         <Text style={styles.pageTitle}>{t('history').toUpperCase()}</Text>
+        {grouped.length > 0 && <Text style={styles.pageHint}>{t('editSetHint')}</Text>}
 
         {grouped.length === 0 ? (
           <Text style={styles.emptyState}>{t('noHistory')}</Text>
@@ -138,12 +197,17 @@ export default function HistoryScreen() {
                     </TouchableOpacity>
                   </View>
                   <View style={styles.chips}>
-                    {session.sets.map((s, i) => (
-                      <View key={i} style={styles.chip}>
+                    {session.sets.map(s => (
+                      <TouchableOpacity
+                        key={s.setId}
+                        style={styles.chip}
+                        onPress={() => openEdit(ex, s)}
+                        activeOpacity={0.6}
+                      >
                         <Text style={styles.chipText}>
                           {formatSetWithExtras(s, ex.trackingType, ex.extraFields)}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </View>
@@ -152,6 +216,84 @@ export default function HistoryScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Correcting a logged set */}
+      <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
+        <KeyboardAvoidingView
+          style={styles.overlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>{t('editSetTitle')}</Text>
+            <Text style={styles.sheetSub}>
+              {editing && exerciseLabel(editing.exerciseName, t)}
+            </Text>
+
+            {editing && (
+              <>
+                {/* The load axis, whatever its unit — absent where there is none */}
+                {editing.trackingType !== 'bodyweight' && editing.trackingType !== 'time' && (
+                  <View style={styles.field}>
+                    <Text style={styles.fieldLabel}>
+                      {editing.trackingType === 'percent' ? t('percent')
+                        : editing.trackingType === 'distance_time' ? t('distanceKm')
+                        : t('kg')}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      value={editing.weight}
+                      onChangeText={v => setEditing(e => e && { ...e, weight: v })}
+                    />
+                  </View>
+                )}
+
+                <View style={styles.field}>
+                  <Text style={styles.fieldLabel}>
+                    {editing.trackingType === 'time' || editing.trackingType === 'distance_time'
+                      ? t('durationSec')
+                      : t('reps')}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    keyboardType="numeric"
+                    value={editing.reps}
+                    onChangeText={v => setEditing(e => e && { ...e, reps: v })}
+                  />
+                </View>
+
+                {editing.extraFields.map(f => (
+                  <View key={f.id} style={styles.field}>
+                    <Text style={styles.fieldLabel}>
+                      {f.label}{f.unit ? ` (${f.unit})` : ''}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      keyboardType="decimal-pad"
+                      value={editing.extras[f.id] ?? ''}
+                      onChangeText={v => setEditing(e => e && {
+                        ...e, extras: { ...e.extras, [f.id]: v },
+                      })}
+                    />
+                  </View>
+                ))}
+              </>
+            )}
+
+            <View style={styles.sheetBtns}>
+              <TouchableOpacity style={styles.sheetBtn} onPress={() => setEditing(null)}>
+                <Text style={styles.sheetBtnTxt}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.sheetBtn} onPress={confirmDeleteSet}>
+                <Text style={[styles.sheetBtnTxt, styles.sheetBtnDanger]}>{t('delete')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.sheetBtn, styles.sheetBtnPrimary]} onPress={saveEdit}>
+                <Text style={styles.sheetBtnPrimaryTxt}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -169,7 +311,8 @@ function makeStyles(c: Colors) {
     logo: { fontFamily: 'BebasNeue_400Regular', fontSize: 26, letterSpacing: 3, color: c.accent },
     scroll: { flex: 1 },
     content: { padding: 16 },
-    pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 16 },
+    pageTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 18, letterSpacing: 2, color: c.muted, marginBottom: 4 },
+    pageHint: { fontSize: 11, color: c.muted, marginBottom: 16 },
     emptyState: { textAlign: 'center', color: c.muted, paddingVertical: 40, fontSize: 14, lineHeight: 22 },
     exBlock: { marginBottom: 12 },
     exHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 2 },
@@ -204,5 +347,32 @@ function makeStyles(c: Colors) {
       paddingVertical: 3,
     },
     chipText: { fontSize: 13, color: c.text },
+
+    overlay: {
+      flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+      alignItems: 'center', justifyContent: 'center', padding: 24,
+    },
+    sheet: {
+      width: '100%', backgroundColor: c.surface, borderRadius: 12,
+      borderWidth: 1, borderColor: c.border, padding: 18,
+    },
+    sheetTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, letterSpacing: 1, color: c.text },
+    sheetSub: { fontSize: 13, color: c.accent, marginBottom: 14 },
+    field: { marginBottom: 10 },
+    fieldLabel: { fontSize: 11, color: c.muted, marginBottom: 4 },
+    input: {
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+      borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10,
+      fontSize: 16, color: c.text,
+    },
+    sheetBtns: { flexDirection: 'row', gap: 8, marginTop: 8 },
+    sheetBtn: {
+      flex: 1, paddingVertical: 11, borderRadius: 8, alignItems: 'center',
+      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2,
+    },
+    sheetBtnTxt: { fontSize: 14, color: c.text },
+    sheetBtnDanger: { color: '#EF4444' },
+    sheetBtnPrimary: { backgroundColor: c.accent, borderColor: c.accent },
+    sheetBtnPrimaryTxt: { fontSize: 14, color: '#fff', fontWeight: '700' },
   });
 }

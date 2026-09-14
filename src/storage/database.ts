@@ -659,6 +659,30 @@ export async function saveWorkout(
   }
 }
 
+/**
+ * Correct one logged set after the fact.
+ *
+ * Addressed by row id rather than by workout and set number: numbers shift as
+ * soon as a set in front of it is deleted, and a correction must never land on
+ * a different set than the one that was tapped.
+ */
+export async function updateSet(
+  setId: number,
+  values: { reps: string; weight: string; extras: Record<string, string> },
+): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'UPDATE sets SET reps = ?, weight = ?, extras = ? WHERE id = ?',
+    values.reps, values.weight, JSON.stringify(values.extras), setId,
+  );
+}
+
+/** Removes a single set. The numbering of the rest is left as it was. */
+export async function deleteSet(setId: number): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM sets WHERE id = ?', setId);
+}
+
 export async function deleteWorkout(workoutId: number): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM workouts WHERE id = ?', workoutId);
@@ -667,6 +691,8 @@ export async function deleteWorkout(workoutId: number): Promise<void> {
 // ── History ────────────────────────────────────────────────────
 
 export type HistoryRow = {
+  /** Row id of the set, so the history can edit or drop exactly this one. */
+  setId: number;
   workoutId: number;
   date: string;
   exerciseName: string;
@@ -683,11 +709,12 @@ export type HistoryRow = {
 export async function getHistory(): Promise<HistoryRow[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<{
-    workoutId: number; date: string; exerciseName: string; setNumber: number;
+    setId: number; workoutId: number; date: string; exerciseName: string; setNumber: number;
     reps: string; weight: string; side: string | null; extras: string | null;
     trackingType: string | null; extraFields: string | null;
   }>(`
     SELECT
+      s.id as setId,
       w.id as workoutId,
       w.date,
       s.exercise_name as exerciseName,
