@@ -1,6 +1,6 @@
 # Liftbook
 
-React Native / Expo (SDK 57) workout tracker. TypeScript, expo-sqlite for local
+React Native / Expo (SDK 58) workout tracker. TypeScript, expo-sqlite for local
 persistence, React Navigation bottom tabs, i18n in DE/EN/ES.
 
 ## Deploying changes to the phone
@@ -10,13 +10,22 @@ and an Android phone with an installed APK from `eas build --profile preview`.
 Both sit on the same `preview` branch/channel, so a single `eas update` reaches
 both — always publish for both, never one platform only.
 
-**Runtime version is `2.0.0` since the SDK 57 upgrade.** Expo Go on iOS only
-ever supports the newest SDK and auto-updated to 57, which locked the iPhone
-out of the SDK 54 project — upgrading was the only way back in, and it is a
-native change. The APK the user has installed was built against SDK 54 at
-runtime version `1.0.0`; bumping the version is what stops it downloading an
-SDK 57 bundle it cannot run. It therefore receives no further updates until a
-new APK is built and installed.
+**Runtime version is `3.0.0` since the SDK 58 upgrade.** Expo Go on iOS ships
+only the newest SDK and updates itself, so every Expo SDK release locks the
+iPhone out of the project until it is upgraded to match — SDK 54 → 57 in
+September, 57 → 58 in October. Expect this roughly quarterly; it is not a
+regression to investigate. Each upgrade is a native change, so bump
+`app.json` `version` with it: that is what stops an already-installed APK
+downloading a bundle whose native side it does not have.
+
+The APK the user still has installed is SDK 54 at runtime `1.0.0` and has
+been cut off since September; a new one has not been built because the build
+workflow is not dispatchable (see below). Only Expo Go on the iPhone is
+current.
+
+The lasting fixes are a standalone iOS build (needs a paid Apple Developer
+account, which the user does not have) or turning off automatic app updates
+on the iPhone so Expo Go stops jumping ahead of the project.
 
 Updates are loaded from the published EAS Update, not from a local dev server.
 There is no iOS standalone build and no Apple Developer account. Do not tell
@@ -36,7 +45,7 @@ launch downloads the update, the second shows it.
 **After every push, tell the user the build number that push produced.** It
 is the commit count (`git rev-list --count HEAD`), stamped into the bundle by
 `scripts/generate-version.js` at publish time and shown in Settings → About
-as "Version 2.0.0 · Build 61". Naming it lets them check on the phone whether
+as "Version 3.0.0 · Build 64". Naming it lets them check on the phone whether
 the update actually arrived.
 
 Alternatively `.github/workflows/eas-update.yml` publishes the same update
@@ -45,9 +54,17 @@ hand from the GitHub app). It needs the `EXPO_TOKEN` repository secret,
 which is set — CI is the normal path now, the PC command is the fallback.
 
 `.github/workflows/eas-build-android.yml` starts an Android APK build on
-manual dispatch. It only works after the first Android build has been run
-once from a terminal, because generating the keystore needs an interactive
-prompt. Builds count against the free quota, so never trigger it on push.
+manual dispatch. Builds count against the free quota, so never trigger it on
+push.
+
+**It cannot currently be dispatched.** GitHub only registers a
+`workflow_dispatch` workflow whose file is on the default branch, and this
+one exists only on the feature branch — so it has never appeared in the
+Actions list and an API dispatch returns 404. `eas-update.yml` is on `master`
+and therefore works. Fixing this means putting the file on `master`, which
+needs the user's explicit permission to push there; they have been asked and
+have not answered. Until then the only route to an APK is
+`eas build --platform android --profile preview` from their PC.
 
 Constraints this implies:
 

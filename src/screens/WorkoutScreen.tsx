@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
   StyleSheet, Alert, FlatList, Keyboard, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
@@ -90,7 +91,7 @@ export default function WorkoutScreen({ navigation }: any) {
   const [fieldsFor, setFieldsFor] = useState<string | null>(null);   // exercise whose extra fields are being edited
   const [newFieldLabel, setNewFieldLabel] = useState('');
   const [newFieldUnit, setNewFieldUnit] = useState('');
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
 
   // ── Set-level timer tick ──────────────────────────────────
   const [, setTimerTick] = useState(0);
@@ -1080,7 +1081,7 @@ export default function WorkoutScreen({ navigation }: any) {
               keyboardDismissMode="on-drag"
               automaticallyAdjustKeyboardInsets
               contentContainerStyle={{ paddingHorizontal: 16 }}
-              ListHeaderComponent={canCreate ? (
+              ListHeaderComponent={!canCreate ? undefined : (
                 <TouchableOpacity
                   style={styles.createExItem}
                   onPress={() => handleCreateAndAdd(exSearch)}
@@ -1089,7 +1090,7 @@ export default function WorkoutScreen({ navigation }: any) {
                     {t('createExercise', { name: exSearch.trim() })}
                   </Text>
                 </TouchableOpacity>
-              ) : null}
+              )}
               renderItem={({ item }: { item: typeof allExercises[0] }) => {
                 const added = exercises.find(e => e.name === item.name);
                 return (
