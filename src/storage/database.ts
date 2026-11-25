@@ -605,6 +605,25 @@ export async function initDb() {
       );
     }
   });
+
+  // The one-arm dumbbell curl was created as its own exercise a migration
+  // ago; it is the built-in Bicep Curl the user already logs. Folded back in
+  // so the plan points at the entry that carries the history.
+  await runOnce(db, 'dumbbell-curl-merge-1', async () => {
+    try { await mergeExercises('Kurzhantel-Curl einarmig', 'Bicep Curl'); } catch { /* gone already */ }
+    await db.runAsync(
+      "UPDATE exercises SET has_sides = 1 WHERE name = 'Bicep Curl'",
+    );
+    await db.runAsync(
+      "UPDATE exercises SET notes = ? WHERE name = 'Bicep Curl' AND notes IS NULL",
+      '3× 10–12 pro Seite',
+    );
+    // The plan's note is free text and still names the exercise that is gone
+    await db.runAsync(
+      `UPDATE templates SET notes = REPLACE(notes, ?, ?) WHERE notes IS NOT NULL`,
+      'Kurzhantel-Curl einarmig', 'Bizepscurl einarmig',
+    );
+  });
 }
 
 // ── Exercises ──────────────────────────────────────────────────
