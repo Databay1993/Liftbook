@@ -666,6 +666,13 @@ export default function WorkoutScreen({ navigation }: any) {
           </Text>
         </View>
 
+        {/* The plan's own note — the prescription for the whole session */}
+        {!!activeWorkout.note && (
+          <View style={styles.planNote}>
+            <Text style={styles.planNoteTxt}>{activeWorkout.note}</Text>
+          </View>
+        )}
+
         {exercises.length === 0 && <Text style={styles.emptyState}>{t('noExercises')}</Text>}
 
         {exercises.map((ex, exIndex) => {
@@ -1464,6 +1471,11 @@ function makeStyles(c: Colors) {
       paddingVertical: 12, alignItems: 'center', marginTop: 4,
     },
     modalDoneTxt: { color: '#000', fontSize: 15, fontWeight: '700' },
+    planNote: {
+      backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+      borderRadius: 10, padding: 12, marginBottom: 12,
+    },
+    planNoteTxt: { fontSize: 13, color: c.text, lineHeight: 20 },
     noteBox: {
       backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
       borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,

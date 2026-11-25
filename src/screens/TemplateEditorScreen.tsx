@@ -32,6 +32,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [name, setName] = useState('');
+  const [notes, setNotes] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [allExercises, setAllExercises] = useState<{ id: number; name: string; isCustom: boolean }[]>([]);
   const [showPicker, setShowPicker] = useState(false);
@@ -52,6 +53,7 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
     if (visible) {
       loadExercises();
       setName(template?.name ?? '');
+      setNotes(template?.notes ?? '');
       setSelectedExercises(template?.exercises ?? []);
     }
   }, [visible, template?.id]);
@@ -157,8 +159,8 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
       return;
     }
     try {
-      if (template) await updateTemplate(template.id, trimmed, selectedExercises);
-      else          await createTemplate(trimmed, selectedExercises);
+      if (template) await updateTemplate(template.id, trimmed, selectedExercises, notes);
+      else          await createTemplate(trimmed, selectedExercises, notes);
       onSaved();
       onClose();
     } catch {
@@ -204,6 +206,15 @@ export default function TemplateEditorScreen({ visible, onClose, onSaved, templa
             onChangeText={setName}
             returnKeyType="done"
             onSubmitEditing={() => Keyboard.dismiss()}
+          />
+          <TextInput
+            style={styles.notesInput}
+            placeholder={t('templateNotesPlaceholder')}
+            placeholderTextColor={colors.muted}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            textAlignVertical="top"
           />
         </View>
 
@@ -386,6 +397,19 @@ function makeStyles(c: Colors) {
       paddingVertical: 12,
       borderRadius: 8,
       fontSize: 16,
+    },
+    notesInput: {
+      backgroundColor: c.surface2,
+      borderWidth: 1,
+      borderColor: c.border,
+      color: c.text,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 8,
+      fontSize: 14,
+      lineHeight: 20,
+      minHeight: 76,
+      marginTop: 8,
     },
 
     listSection: { padding: 16 },

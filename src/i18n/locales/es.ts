@@ -277,6 +277,7 @@ export default {
   templates: 'Mis Entrenamientos',
   newTemplate: '+ Nuevo Plan',
   templateName: 'Nombre del plan (ej. Día de piernas)...',
+  templateNotesPlaceholder: 'Nota del plan, p. ej. series y repeticiones',
   createTemplate: 'Guardar plan',
   noTemplates: 'Sin planes aún.\n¡Crea tu primer plan de entrenamiento!',
   startFromTemplate: 'Iniciar',

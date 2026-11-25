@@ -278,6 +278,7 @@ export default {
   templates: 'My Workouts',
   newTemplate: '+ New Workout Plan',
   templateName: 'Plan name (e.g. Leg Day)...',
+  templateNotesPlaceholder: 'Note for the plan, e.g. sets and reps',
   createTemplate: 'Save Plan',
   noTemplates: 'No plans yet.\nCreate your first workout plan!',
   startFromTemplate: 'Start',

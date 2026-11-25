@@ -187,6 +187,12 @@ export async function initDb() {
     await db.execAsync(`ALTER TABLE sets ADD COLUMN exercise_order INTEGER DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
+  // Migration: a free-text note per plan — set and rep prescriptions, which
+  // belong to the plan rather than to any exercise on its own
+  try {
+    await db.execAsync(`ALTER TABLE templates ADD COLUMN notes TEXT DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
   // Migration: a free-text note per exercise — machine settings and cues that
   // belong to the exercise itself, not to any one workout
   try {
@@ -472,6 +478,59 @@ export async function initDb() {
   await runOnce(db, 'standard-exercises-1', async () => {
     for (const name of Object.keys(DEFAULT_MUSCLE_GROUPS)) {
       await db.runAsync('UPDATE exercises SET is_custom = 0 WHERE name = ?', name);
+    }
+  });
+
+  // A core routine the user asked to have set up rather than type in. Each
+  // exercise carries its own prescription as a note, so the target is on the
+  // card while the set is being logged, and the plan repeats them together.
+  await runOnce(db, 'core-workout-1', async () => {
+    const plan: {
+      name: string; tracking: string; sides: boolean; groups: string; note: string;
+    }[] = [
+      { name: 'Copenhagen Plank', tracking: 'time', sides: true,
+        groups: 'core,adductors', note: '3× 20–30 Sek. pro Seite' },
+      { name: 'Side Plank', tracking: 'time', sides: true,
+        groups: 'core', note: '3× 30–45 Sek. pro Seite' },
+      { name: 'Dead Bug', tracking: 'bodyweight', sides: true,
+        groups: 'core', note: '3× 10 pro Seite' },
+      { name: 'Pallof Press', tracking: 'weight_reps', sides: true,
+        groups: 'core', note: '3× 10 pro Seite' },
+      { name: 'Med-Ball-Rotationswurf', tracking: 'weight_reps', sides: true,
+        groups: 'core', note: '3× 6 pro Seite, explosiv' },
+    ];
+
+    for (const ex of plan) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO exercises (name, is_custom, muscle_group, tracking_type)
+         VALUES (?, 0, ?, ?)`,
+        ex.name, ex.groups, ex.tracking,
+      );
+      // Sides and the note are safe to set on an existing entry; the tracking
+      // type is not, because it decides what already-logged numbers mean
+      await db.runAsync(
+        'UPDATE exercises SET has_sides = 1, notes = ?, is_custom = 0 WHERE name = ?',
+        ex.note, ex.name,
+      );
+      const logged = await db.getFirstAsync<{ c: number }>(
+        'SELECT COUNT(*) as c FROM sets WHERE exercise_name = ?', ex.name,
+      );
+      if ((logged?.c ?? 0) === 0) {
+        await db.runAsync(
+          'UPDATE exercises SET tracking_type = ? WHERE name = ?', ex.tracking, ex.name,
+        );
+      }
+    }
+
+    const exists = await db.getFirstAsync<{ id: number }>(
+      'SELECT id FROM templates WHERE name = ?', 'Core',
+    );
+    if (!exists) {
+      await createTemplate(
+        'Core',
+        plan.map(e => e.name),
+        plan.map(e => `${e.name}: ${e.note}`).join('\n'),
+      );
     }
   });
 }
@@ -1150,11 +1209,13 @@ export type Template = {
   id: number;
   name: string;
   exercises: string[];
+  /** Set and rep prescriptions for the plan as a whole. */
+  notes: string;
 };
 
 export async function getTemplates(): Promise<Template[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; notes: string | null }>(
     'SELECT * FROM templates ORDER BY created_at ASC'
   );
   const templates: Template[] = [];
@@ -1163,14 +1224,21 @@ export async function getTemplates(): Promise<Template[]> {
       'SELECT exercise_name FROM template_exercises WHERE template_id = ? ORDER BY sort_order ASC',
       row.id
     );
-    templates.push({ id: row.id, name: row.name, exercises: exRows.map(e => e.exercise_name) });
+    templates.push({
+      id: row.id,
+      name: row.name,
+      exercises: exRows.map(e => e.exercise_name),
+      notes: row.notes ?? '',
+    });
   }
   return templates;
 }
 
-export async function createTemplate(name: string, exercises: string[]): Promise<void> {
+export async function createTemplate(name: string, exercises: string[], notes = ''): Promise<void> {
   const db = await getDb();
-  const result = await db.runAsync('INSERT INTO templates (name) VALUES (?)', name.trim());
+  const result = await db.runAsync(
+    'INSERT INTO templates (name, notes) VALUES (?, ?)', name.trim(), notes.trim() || null,
+  );
   const templateId = result.lastInsertRowId;
   for (let i = 0; i < exercises.length; i++) {
     await db.runAsync(
@@ -1180,9 +1248,12 @@ export async function createTemplate(name: string, exercises: string[]): Promise
   }
 }
 
-export async function updateTemplate(id: number, name: string, exercises: string[]): Promise<void> {
+export async function updateTemplate(id: number, name: string, exercises: string[], notes = ''): Promise<void> {
   const db = await getDb();
-  await db.runAsync('UPDATE templates SET name = ? WHERE id = ?', name.trim(), id);
+  await db.runAsync(
+    'UPDATE templates SET name = ?, notes = ? WHERE id = ?',
+    name.trim(), notes.trim() || null, id,
+  );
   await db.runAsync('DELETE FROM template_exercises WHERE template_id = ?', id);
   for (let i = 0; i < exercises.length; i++) {
     await db.runAsync(

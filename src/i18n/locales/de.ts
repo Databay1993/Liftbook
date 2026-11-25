@@ -278,6 +278,7 @@ export default {
   templates: 'Meine Workouts',
   newTemplate: '+ Neuer Trainingsplan',
   templateName: 'Planname (z.B. Bein-Tag)...',
+  templateNotesPlaceholder: 'Notiz zum Plan, z.B. Sätze und Wiederholungen',
   createTemplate: 'Plan speichern',
   noTemplates: 'Noch keine Pläne.\nErstelle deinen ersten Trainingsplan!',
   startFromTemplate: 'Starten',

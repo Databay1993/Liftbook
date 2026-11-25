@@ -62,7 +62,7 @@ export default function HomeScreen({ navigation }: any) {
   }
 
   function handleStartFromTemplate(tmpl: Template) {
-    startWorkout(tmpl.exercises);
+    startWorkout(tmpl.exercises, tmpl.notes);
     navigation.navigate('WorkoutTab');
   }
 
@@ -157,6 +157,7 @@ export default function HomeScreen({ navigation }: any) {
               <View key={tmpl.id} style={styles.templateCard}>
                 <View style={styles.templateInfo}>
                   <Text style={styles.templateName}>{tmpl.name}</Text>
+                  {!!tmpl.notes && <Text style={styles.templateNotes}>{tmpl.notes}</Text>}
                   <Text style={styles.templateExercises}>
                     {tmpl.exercises.slice(0, 3).map(n => exerciseLabel(n, t)).join(' · ')}
                     {tmpl.exercises.length > 3 ? ` +${tmpl.exercises.length - 3}` : ''}
@@ -324,6 +325,7 @@ function makeStyles(c: Colors) {
     templateInfo: { marginBottom: 10 },
     templateName: { fontWeight: '700', fontSize: 16, color: c.text, marginBottom: 4 },
     templateExercises: { fontSize: 12, color: c.muted },
+    templateNotes: { fontSize: 12, color: c.text, lineHeight: 18, marginBottom: 6 },
     templateBtns: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     startTemplateBtn: {
       backgroundColor: c.accent,
