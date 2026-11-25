@@ -533,6 +533,78 @@ export async function initDb() {
       );
     }
   });
+
+  // The user's two training days, set up rather than typed in. Most of the
+  // exercises already existed, so the plans reuse those entries and keep the
+  // history attached to them; only three were genuinely new.
+  await runOnce(db, 'workouts-1-2-1', async () => {
+    const newExercises: {
+      name: string; tracking: string; sides: boolean; groups: string;
+    }[] = [
+      { name: 'Trizeps Overhead-Extension', tracking: 'weight_reps', sides: false, groups: 'triceps' },
+      { name: 'Dips',                        tracking: 'bodyweight',  sides: false, groups: 'chest,triceps' },
+      { name: 'Kurzhantel-Curl einarmig',    tracking: 'weight_reps', sides: true,  groups: 'biceps' },
+    ];
+    for (const ex of newExercises) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO exercises (name, is_custom, muscle_group, tracking_type, has_sides)
+         VALUES (?, 0, ?, ?, ?)`,
+        ex.name, ex.groups, ex.tracking, ex.sides ? 1 : 0,
+      );
+    }
+
+    // [stored name, name to read in the note, prescription]. The built-ins are
+    // keyed in English, which the German UI never shows, so the note spells
+    // them the way the rest of the app does.
+    type Entry = [string, string, string];
+    const workout1: Entry[] = [
+      ['Lat Pulldown',     'Latzug',            '3× 6–10 · oder Klimmzug'],
+      ['Bench Press',      'Bankdrücken',       '3× 6–8'],
+      ['Seitheben',        'Seitheben',         '3× 12–15'],
+      ['Tricep Pushdown',  'Trizepsdrücken',    '3× 10–12 · im Wochenwechsel mit Overhead-Extension'],
+      ['SZ-Curl',          'SZ-Curl',           '3× 8–12'],
+      ['Copenhagen Plank', 'Copenhagen Plank',  '3× 20–30 Sek. pro Seite'],
+      ['Pallof Press',     'Pallof Press',      '3× 10 pro Seite'],
+    ];
+    const workout2: Entry[] = [
+      ['Med-Ball-Rotationswurf',   'Med-Ball-Rotationswurf',   '3× 6 pro Seite, explosiv, 1–3 kg'],
+      ['Kabelrudern eng',          'Kabelrudern eng',          '3× 8–12'],
+      ['Dips',                     'Dips',                     '3× 6–10'],
+      ['Butterfly',                'Butterfly',                '3× 10–15'],
+      ['Reverse Butterfly',        'Reverse Butterfly',        '3× 12–15'],
+      ['Kurzhantel-Curl einarmig', 'Kurzhantel-Curl einarmig', '3× 10–12 pro Seite'],
+      ['Side Plank',               'Side Plank',               '3× 30–45 Sek. pro Seite'],
+      ['Dead Bug',                 'Dead Bug',                 '3× 10 pro Seite'],
+      ['Copenhagen Plank',         'Copenhagen Plank',         'nur in der Vorbereitung · 3× 20–30 Sek. pro Seite'],
+    ];
+
+    // Only where the exercise has no note yet: one the user wrote themselves
+    // outranks a prescription, and Copenhagen Plank is in both plans
+    for (const [name, , note] of [...workout1, ...workout2]) {
+      await db.runAsync(
+        'UPDATE exercises SET notes = ? WHERE name = ? AND notes IS NULL', note, name,
+      );
+    }
+    // The med ball got its note from the Core plan above, one load hint short.
+    // Overwritten only if it still reads exactly as that migration left it.
+    await db.runAsync(
+      `UPDATE exercises SET notes = ?
+       WHERE name = 'Med-Ball-Rotationswurf' AND notes = ?`,
+      '3× 6 pro Seite, explosiv, 1–3 kg', '3× 6 pro Seite, explosiv',
+    );
+
+    for (const [title, entries] of [['Workout 1', workout1], ['Workout 2', workout2]] as const) {
+      const exists = await db.getFirstAsync<{ id: number }>(
+        'SELECT id FROM templates WHERE name = ?', title,
+      );
+      if (exists) continue;
+      await createTemplate(
+        title,
+        entries.map(([name]) => name),
+        entries.map(([, label, note], i) => `${i + 1}. ${label}: ${note}`).join('\n'),
+      );
+    }
+  });
 }
 
 // ── Exercises ──────────────────────────────────────────────────
