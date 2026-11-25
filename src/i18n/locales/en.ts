@@ -78,6 +78,9 @@ export default {
   extraFieldName: 'Name, e.g. Peak Power',
   extraFieldUnit: 'Unit',
   fieldExists: 'Already exists',
+  notesTitle: 'Note',
+  notesHint: 'Belongs to the exercise, not to one session — it is there again next time.',
+  notesPlaceholder: 'e.g. seat 4, back rest 2, narrow grip',
 
   // Set timer
   timerStart: '▶',

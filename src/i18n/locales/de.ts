@@ -78,6 +78,9 @@ export default {
   extraFieldName: 'Bezeichnung, z.B. Peak Power',
   extraFieldUnit: 'Einheit',
   fieldExists: 'Gibt es schon',
+  notesTitle: 'Notiz',
+  notesHint: 'Gehört zur Übung, nicht zum einzelnen Training — steht also beim nächsten Mal wieder da.',
+  notesPlaceholder: 'z.B. Sitz 4, Lehne 2, Griff eng',
 
   // Set timer
   timerStart: '▶',

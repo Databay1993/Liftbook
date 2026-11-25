@@ -61,6 +61,9 @@ export default {
   extraFieldName: 'Nombre, p. ej. Potencia pico',
   extraFieldUnit: 'Unidad',
   fieldExists: 'Ya existe',
+  notesTitle: 'Nota',
+  notesHint: 'Pertenece al ejercicio, no a una sesión — estará ahí la próxima vez.',
+  notesPlaceholder: 'p. ej. asiento 4, respaldo 2, agarre estrecho',
 
   // Set timer
   timerStart: '▶',

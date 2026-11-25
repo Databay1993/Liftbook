@@ -17,6 +17,7 @@ import {
   saveExerciseSets, addCustomExercise, updateExerciseTrackingType,
   updateExerciseRestTime, updateExerciseHasSides, getHistory, updateExerciseOrder,
   getExerciseSets, getWorkoutCompositions, updateExerciseExtraFields, ExtraField,
+  updateExerciseNotes,
 } from '../storage/database';
 import {
   buildE1RMSeries, analyzeContexts, contextKey, estimateReps, formatSetWithExtras, formatDuration,
@@ -54,6 +55,8 @@ interface WExercise {
   hasSides: boolean;
   /** Extra numbers this exercise records beyond reps and load. */
   extraFields: ExtraField[];
+  /** How the machine is set up, and anything else worth remembering. */
+  notes: string;
   /** Cards start folded so a long workout stays scannable. */
   collapsed: boolean;
 }
@@ -79,7 +82,7 @@ export default function WorkoutScreen({ navigation }: any) {
   const [exercises, setExercises] = useState<WExercise[]>([]);
   const [showAddEx, setShowAddEx] = useState(false);
   const [exSearch, setExSearch] = useState('');
-  const [allExercises, setAllExercises] = useState<{ name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]>([]);
+  const [allExercises, setAllExercises] = useState<Awaited<ReturnType<typeof getAllExercises>>>([]);
   const [contexts, setContexts] = useState<Record<string, ContextAnalysis>>({});
   const [lastSessions, setLastSessions] = useState<Record<string, {
     date: string;
@@ -89,6 +92,8 @@ export default function WorkoutScreen({ navigation }: any) {
   const [restDuration, setRestDuration] = useState(DEFAULT_REST);
   const [summary, setSummary] = useState<{ totalSets: number; totalVolume: number; newPRs: string[] } | null>(null);
   const [fieldsFor, setFieldsFor] = useState<string | null>(null);   // exercise whose extra fields are being edited
+  const [notesFor, setNotesFor] = useState<string | null>(null);     // exercise whose note is being edited
+  const [noteDraft, setNoteDraft] = useState('');
   const [newFieldLabel, setNewFieldLabel] = useState('');
   const [newFieldUnit, setNewFieldUnit] = useState('');
   const scrollRef = useRef<ScrollViewInstance>(null);
@@ -167,6 +172,7 @@ export default function WorkoutScreen({ navigation }: any) {
           restTime: info?.restTime ?? ex.restTime ?? null,
           hasSides: info?.hasSides ?? ex.hasSides ?? false,
           extraFields: info?.extraFields ?? ex.extraFields ?? [],
+          notes: info?.notes ?? ex.notes ?? '',
           // Only where nothing is logged yet — coming back to a workout must
           // never overwrite sets already entered
           sets: ex.sets.length === 0 && last
@@ -234,6 +240,7 @@ export default function WorkoutScreen({ navigation }: any) {
       name, trackingType, sets: prefilled, isCompleted: false,
       restTime: info?.restTime ?? null, showRestPicker: false, hasSides,
       extraFields: info?.extraFields ?? [],
+      notes: info?.notes ?? '',
       collapsed: false,   // just added means about to be logged
     };
     setExercises(prev => [...prev, newEx]);
@@ -257,6 +264,26 @@ export default function WorkoutScreen({ navigation }: any) {
    * Extra fields belong to the exercise, not to one workout, so adding one
    * here also defines it for every future session of that exercise.
    */
+  function openNotes(exName: string) {
+    setNoteDraft(exercises.find(e => e.name === exName)?.notes ?? '');
+    setNotesFor(exName);
+  }
+
+  /**
+   * The note belongs to the exercise, so saving it here changes it for every
+   * future session too — which is the point: the machine does not get set up
+   * differently next week.
+   */
+  async function saveNotes() {
+    if (!notesFor) return;
+    const name = notesFor;
+    const text = noteDraft.trim();
+    await updateExerciseNotes(name, text);
+    setExercises(prev => prev.map(e => (e.name === name ? { ...e, notes: text } : e)));
+    await loadExercises();
+    setNotesFor(null);
+  }
+
   async function addExtraField(exName: string) {
     const label = newFieldLabel.trim();
     if (!label) return;
@@ -747,7 +774,21 @@ export default function WorkoutScreen({ navigation }: any) {
                           + {ex.extraFields.length || ''}
                         </Text>
                       </TouchableOpacity>
+                      {/* How the machine is set up */}
+                      <TouchableOpacity
+                        style={[styles.sideToggleBtn, !!ex.notes && styles.sideToggleBtnActive]}
+                        onPress={() => openNotes(ex.name)}
+                      >
+                        <Text style={[styles.sideToggleTxt, !!ex.notes && styles.sideToggleTxtActive]}>📝</Text>
+                      </TouchableOpacity>
                     </View>
+                  )}
+
+                  {/* The note itself, where it is of use: before the first set */}
+                  {!folded && !!ex.notes && (
+                    <TouchableOpacity style={styles.noteBox} onPress={() => openNotes(ex.name)}>
+                      <Text style={styles.noteTxt}>{ex.notes}</Text>
+                    </TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.exHeaderRight}>
@@ -1109,6 +1150,35 @@ export default function WorkoutScreen({ navigation }: any) {
         </SafeAreaView>
       </Modal>
 
+      {/* The note for one exercise */}
+      <Modal visible={!!notesFor} transparent animationType="fade" onRequestClose={() => setNotesFor(null)}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('notesTitle')}</Text>
+            <Text style={styles.modalSub}>{notesFor && exerciseLabel(notesFor, t)}</Text>
+            <Text style={styles.modalHint}>{t('notesHint')}</Text>
+            <TextInput
+              style={styles.noteInput}
+              placeholder={t('notesPlaceholder')}
+              placeholderTextColor={colors.muted}
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={styles.noteBtns}>
+              <TouchableOpacity style={styles.noteCancel} onPress={() => setNotesFor(null)}>
+                <Text style={styles.noteCancelTxt}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalDone, { flex: 2 }]} onPress={saveNotes}>
+                <Text style={styles.modalDoneTxt}>{t('save')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* Extra measurements for one exercise */}
       <Modal visible={!!fieldsFor} transparent animationType="fade" onRequestClose={() => setFieldsFor(null)}>
         <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -1394,6 +1464,22 @@ function makeStyles(c: Colors) {
       paddingVertical: 12, alignItems: 'center', marginTop: 4,
     },
     modalDoneTxt: { color: '#000', fontSize: 15, fontWeight: '700' },
+    noteBox: {
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+      borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginTop: 8,
+    },
+    noteTxt: { fontSize: 13, color: c.text, lineHeight: 19 },
+    noteInput: {
+      backgroundColor: c.surface2, borderWidth: 1, borderColor: c.border,
+      borderRadius: 8, padding: 12, minHeight: 110,
+      fontSize: 15, color: c.text, lineHeight: 21,
+    },
+    noteBtns: { flexDirection: 'row', gap: 8, alignItems: 'stretch' },
+    noteCancel: {
+      flex: 1, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface2,
+      borderRadius: 8, alignItems: 'center', justifyContent: 'center', paddingVertical: 12,
+    },
+    noteCancelTxt: { fontSize: 15, color: c.text },
     hintWrap: { alignItems: 'center', maxWidth: 96 },
     hintSource: { fontSize: 8, color: c.muted, marginTop: 1, textAlign: 'center' },
     hintTargets: { fontSize: 8, color: c.muted, opacity: 0.85, marginTop: 1, textAlign: 'center' },

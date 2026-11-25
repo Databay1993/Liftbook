@@ -187,6 +187,12 @@ export async function initDb() {
     await db.execAsync(`ALTER TABLE sets ADD COLUMN exercise_order INTEGER DEFAULT NULL;`);
   } catch { /* column already exists */ }
 
+  // Migration: a free-text note per exercise — machine settings and cues that
+  // belong to the exercise itself, not to any one workout
+  try {
+    await db.execAsync(`ALTER TABLE exercises ADD COLUMN notes TEXT DEFAULT NULL;`);
+  } catch { /* column already exists */ }
+
   // Migration: user-defined extra fields, as JSON so any number of them fit
   try {
     await db.execAsync(`ALTER TABLE exercises ADD COLUMN extra_fields TEXT DEFAULT NULL;`);
@@ -472,9 +478,9 @@ export async function initDb() {
 
 // ── Exercises ──────────────────────────────────────────────────
 
-export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[] }[]> {
+export async function getAllExercises(): Promise<{ id: number; name: string; isCustom: boolean; trackingType: string; restTime: number | null; hasSides: boolean; muscleGroup: string | null; extraFields: ExtraField[]; notes: string }[]> {
   const db = await getDb();
-  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number; muscle_group: string | null; extra_fields: string | null }>(
+  const rows = await db.getAllAsync<{ id: number; name: string; is_custom: number; tracking_type: string; rest_time: number | null; has_sides: number; muscle_group: string | null; extra_fields: string | null; notes: string | null }>(
     'SELECT * FROM exercises ORDER BY is_custom ASC, name ASC'
   );
   return rows.map(r => ({
@@ -486,7 +492,21 @@ export async function getAllExercises(): Promise<{ id: number; name: string; isC
     hasSides: r.has_sides === 1,
     muscleGroup: r.muscle_group ?? null,
     extraFields: parseExtraFields(r.extra_fields),
+    notes: r.notes ?? '',
   }));
+}
+
+/**
+ * The note shown with an exercise — seat height, pin position, a form cue.
+ * Kept on the exercise rather than on a workout: the machine is set the same
+ * way every time, so the note has to be there before the first set is logged.
+ */
+export async function updateExerciseNotes(name: string, notes: string): Promise<void> {
+  const db = await getDb();
+  const trimmed = notes.trim();
+  await db.runAsync(
+    'UPDATE exercises SET notes = ? WHERE name = ?', trimmed || null, name,
+  );
 }
 
 export async function updateExerciseExtraFields(name: string, fields: ExtraField[]): Promise<void> {
