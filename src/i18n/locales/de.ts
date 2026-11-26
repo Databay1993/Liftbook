@@ -92,8 +92,13 @@ export default {
   noHistory: 'Noch kein Workout.\nStarte dein erstes Training!',
   editSetTitle: 'Satz bearbeiten',
   editSetHint: 'Satz antippen zum Korrigieren',
+  byExercise: 'Nach Übung',
+  byWorkout: 'Nach Training',
+  workoutSummary: '{{exercises}} Übungen · {{sets}} Sätze',
   deleteSetTitle: 'Satz löschen?',
   deleteSetBody: 'Nur dieser eine Satz wird entfernt.',
+  deleteWorkoutTitle: 'Training vom {{date}} löschen?',
+  deleteWorkoutBody: 'Alle {{exercises}} Übungen mit {{sets}} Sätzen aus diesem Training werden entfernt. Das lässt sich nicht rückgängig machen.',
 
   // Stats
   stats: 'Statistiken',

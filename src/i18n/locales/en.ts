@@ -92,8 +92,13 @@ export default {
   noHistory: 'No workouts yet.\nStart your first session!',
   editSetTitle: 'Edit set',
   editSetHint: 'Tap a set to correct it',
+  byExercise: 'By exercise',
+  byWorkout: 'By workout',
+  workoutSummary: '{{exercises}} exercises · {{sets}} sets',
   deleteSetTitle: 'Delete set?',
   deleteSetBody: 'Only this one set is removed.',
+  deleteWorkoutTitle: 'Delete the workout from {{date}}?',
+  deleteWorkoutBody: 'All {{exercises}} exercises with {{sets}} sets from this workout are removed. This cannot be undone.',
 
   // Stats
   stats: 'Stats',

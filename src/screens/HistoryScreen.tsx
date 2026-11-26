@@ -26,6 +26,25 @@ type GroupedExercise = {
   sessions: { workoutId: number; date: string; sets: EditableSet[] }[];
 };
 
+/** One exercise as it was done in a single workout. */
+type WorkoutExercise = {
+  exerciseName: string;
+  trackingType: string;
+  extraFields: ExtraField[];
+  position: number;
+  sets: EditableSet[];
+};
+
+/** A whole training session, the way the user remembers doing it. */
+type GroupedWorkout = {
+  workoutId: number;
+  date: string;
+  exercises: WorkoutExercise[];
+};
+
+/** Which way the history is cut: by exercise over time, or by session. */
+type HistoryMode = 'exercise' | 'workout';
+
 /** The set currently open in the edit sheet, with its draft values. */
 type Editing = {
   setId: number;
@@ -44,9 +63,11 @@ export default function HistoryScreen() {
   const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const [grouped, setGrouped] = useState<GroupedExercise[]>([]);
+  const [workouts, setWorkouts] = useState<GroupedWorkout[]>([]);
+  const [mode, setMode] = useState<HistoryMode>('exercise');
   /** Position of each exercise in each workout, keyed workoutId|name. */
   const [positions, setPositions] = useState<Map<string, { position: number; total: number }>>(new Map());
-  /** Names whose sessions are unfolded — everything starts closed. */
+  /** Names, or workout ids, that are unfolded — everything starts closed. */
   const [open, setOpen] = useState<Set<string>>(new Set());
 
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -63,10 +84,51 @@ export default function HistoryScreen() {
 
   async function load() {
     const [rows, order] = await Promise.all([getHistory(), getExercisePositions()]);
-    setGrouped(groupRows(rows));
-    setPositions(new Map(
+    const byKey = new Map(
       order.map(o => [`${o.workoutId}|${o.exerciseName}`, { position: o.position, total: o.total }]),
-    ));
+    );
+    setPositions(byKey);
+    setGrouped(groupRows(rows));
+    setWorkouts(groupByWorkout(rows, byKey));
+  }
+
+  /**
+   * The same rows cut the other way: one entry per session, its exercises in
+   * the order they were trained rather than alphabetically, because that is
+   * how the workout is remembered.
+   */
+  function groupByWorkout(
+    rows: HistoryRow[],
+    byKey: Map<string, { position: number; total: number }>,
+  ): GroupedWorkout[] {
+    const map = new Map<number, GroupedWorkout>();
+
+    for (const row of rows) {
+      let workout = map.get(row.workoutId);
+      if (!workout) {
+        workout = { workoutId: row.workoutId, date: row.date, exercises: [] };
+        map.set(row.workoutId, workout);
+      }
+      let ex = workout.exercises.find(e => e.exerciseName === row.exerciseName);
+      if (!ex) {
+        ex = {
+          exerciseName: row.exerciseName,
+          trackingType: row.trackingType,
+          extraFields: row.extraFields,
+          position: byKey.get(`${row.workoutId}|${row.exerciseName}`)?.position ?? 0,
+          sets: [],
+        };
+        workout.exercises.push(ex);
+      }
+      ex.sets.push({
+        setId: row.setId,
+        reps: row.reps, weight: row.weight, side: row.side, extras: row.extras,
+      });
+    }
+
+    const list = [...map.values()];
+    for (const w of list) w.exercises.sort((a, b) => a.position - b.position);
+    return list.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   function groupRows(rows: HistoryRow[]): GroupedExercise[] {
@@ -96,7 +158,10 @@ export default function HistoryScreen() {
     return Object.values(map);
   }
 
-  function openEdit(ex: GroupedExercise, set: EditableSet) {
+  function openEdit(
+    ex: { exerciseName: string; trackingType: string; extraFields: ExtraField[] },
+    set: EditableSet,
+  ) {
     setEditing({
       setId: set.setId,
       exerciseName: ex.exerciseName,
@@ -134,16 +199,31 @@ export default function HistoryScreen() {
     ]);
   }
 
+  /**
+   * Deleting a workout takes every exercise in it, which is not obvious from
+   * a card that only shows one — so the confirmation counts what is going.
+   */
   async function handleDelete(workoutId: number) {
-    Alert.alert(t('delete'), '', [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'), style: 'destructive', onPress: async () => {
-          await deleteWorkout(workoutId);
-          load();
+    const workout = workouts.find(w => w.workoutId === workoutId);
+    const body = workout
+      ? t('deleteWorkoutBody', {
+          exercises: workout.exercises.length,
+          sets: workout.exercises.reduce((n, e) => n + e.sets.length, 0),
+        })
+      : '';
+    Alert.alert(
+      workout ? t('deleteWorkoutTitle', { date: formatDate(workout.date) }) : t('delete'),
+      body,
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'), style: 'destructive', onPress: async () => {
+            await deleteWorkout(workoutId);
+            load();
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   const formatDate = (iso: string) =>
@@ -159,9 +239,83 @@ export default function HistoryScreen() {
         <Text style={styles.pageTitle}>{t('history').toUpperCase()}</Text>
         {grouped.length > 0 && <Text style={styles.pageHint}>{t('editSetHint')}</Text>}
 
+        {grouped.length > 0 && (
+          <View style={styles.modeRow}>
+            {([['exercise', 'byExercise'], ['workout', 'byWorkout']] as const).map(([m, key]) => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modeBtn, mode === m && styles.modeBtnActive]}
+                onPress={() => setMode(m)}
+              >
+                <Text style={[styles.modeTxt, mode === m && styles.modeTxtActive]}>
+                  {t(key as any)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* ── By workout: one card per session, newest first ── */}
+        {mode === 'workout' && workouts.map(w => {
+          const key = `w${w.workoutId}`;
+          const setCount = w.exercises.reduce((n, e) => n + e.sets.length, 0);
+          return (
+            <View key={key} style={styles.exBlock}>
+              <View style={styles.workoutHead}>
+                <TouchableOpacity
+                  style={styles.workoutHeadMain}
+                  onPress={() => toggle(key)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.workoutDate}>{formatDate(w.date)}</Text>
+                  <Text style={styles.exCount}>
+                    {t('workoutSummary' as any, {
+                      exercises: w.exercises.length,
+                      sets: setCount,
+                    })}
+                  </Text>
+                  <Text style={styles.exChevron}>{open.has(key) ? '▾' : '▸'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDelete(w.workoutId)}>
+                  <Text style={styles.deleteBtn}>🗑</Text>
+                </TouchableOpacity>
+              </View>
+
+              {open.has(key) && w.exercises.map((ex, i) => (
+                <View key={ex.exerciseName} style={styles.sessionCard}>
+                  <View style={styles.sessionHeader}>
+                    <View style={styles.sessionMeta}>
+                      <View style={styles.posBadge}>
+                        <Text style={styles.posBadgeTxt}>{i + 1}.</Text>
+                      </View>
+                      <Text style={styles.workoutExName} numberOfLines={1}>
+                        {exerciseLabel(ex.exerciseName, t)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.chips}>
+                    {ex.sets.map(set => (
+                      <TouchableOpacity
+                        key={set.setId}
+                        style={styles.chip}
+                        onPress={() => openEdit(ex, set)}
+                        activeOpacity={0.6}
+                      >
+                        <Text style={styles.chipText}>
+                          {formatSetWithExtras(set, ex.trackingType, ex.extraFields)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          );
+        })}
+
         {grouped.length === 0 ? (
           <Text style={styles.emptyState}>{t('noHistory')}</Text>
-        ) : (
+        ) : mode !== 'exercise' ? null : (
           grouped.map(ex => (
             <View key={ex.exerciseName} style={styles.exBlock}>
               <TouchableOpacity
@@ -315,6 +469,21 @@ function makeStyles(c: Colors) {
     pageHint: { fontSize: 11, color: c.muted, marginBottom: 16 },
     emptyState: { textAlign: 'center', color: c.muted, paddingVertical: 40, fontSize: 14, lineHeight: 22 },
     exBlock: { marginBottom: 12 },
+    modeRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+    modeBtn: {
+      flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center',
+      borderWidth: 1, borderColor: c.border, backgroundColor: c.surface,
+    },
+    modeBtnActive: { borderColor: c.accent, backgroundColor: c.accentBg },
+    modeTxt: { fontSize: 13, color: c.muted },
+    modeTxtActive: { color: c.accent, fontWeight: '700' },
+    workoutHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
+    workoutHeadMain: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flex: 1 },
+    workoutDate: {
+      fontFamily: 'BebasNeue_400Regular', fontSize: 20, letterSpacing: 1,
+      color: c.accent, marginBottom: 8,
+    },
+    workoutExName: { fontSize: 14, color: c.text, fontWeight: '600', flex: 1 },
     exHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingVertical: 2 },
     exTitle: { fontFamily: 'BebasNeue_400Regular', fontSize: 20, letterSpacing: 1, color: c.accent, marginBottom: 8 },
     exCount: { flex: 1, fontSize: 11, color: c.muted },

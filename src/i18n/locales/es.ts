@@ -91,8 +91,13 @@ export default {
   noHistory: 'Sin entrenamientos aún.\n¡Comienza tu primera sesión!',
   editSetTitle: 'Editar serie',
   editSetHint: 'Toca una serie para corregirla',
+  byExercise: 'Por ejercicio',
+  byWorkout: 'Por entreno',
+  workoutSummary: '{{exercises}} ejercicios · {{sets}} series',
   deleteSetTitle: '¿Eliminar la serie?',
   deleteSetBody: 'Solo se elimina esta serie.',
+  deleteWorkoutTitle: '¿Eliminar el entreno del {{date}}?',
+  deleteWorkoutBody: 'Se eliminan los {{exercises}} ejercicios con {{sets}} series de este entreno. No se puede deshacer.',
 
   // Stats
   stats: 'Estadísticas',
